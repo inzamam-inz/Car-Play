@@ -15,6 +15,7 @@ export interface Tile {
   size: TileSize;
   tall?: boolean;
   title: string;
+  /** icon name from src/ui/icons.tsx */
   icon: string;
   /** kind-specific config */
   url?: string; // shortcut / youtube embed / ytmusic link
@@ -36,19 +37,58 @@ export interface Settings {
   ytPlaylist: string; // youtube playlist or video id
 }
 
-const K_LAYOUT = 'gari.layout.v1';
+const K_LAYOUT = 'gari.layout.v2'; // v2: icon names instead of emoji
 const K_NOTES = 'gari.notes.v1';
 const K_SETTINGS = 'gari.settings.v1';
 
+const SIZES: TileSize[] = ['3', '6', '12'];
+const KIND_ICON: Record<TileKind, string> = {
+  clock: 'clock',
+  weather: 'cloud',
+  notes: 'notes',
+  youtube: 'play',
+  maps: 'pin',
+  shortcut: 'link',
+};
+
+// Tiles can arrive from older versions, hand-edited backups, or partial
+// writes. Coerce everything so a bad value can never break the grid packing.
+export function normalizeTiles(input: unknown): Tile[] {
+  if (!Array.isArray(input)) return DEFAULT_TILES;
+  const out = input
+    .filter((t) => t && typeof t === 'object')
+    .map((t: any): Tile => {
+      const kind: TileKind = (['clock', 'weather', 'notes', 'shortcut', 'youtube', 'maps'] as string[]).includes(t.kind)
+        ? t.kind
+        : 'shortcut';
+      const size: TileSize = SIZES.includes(t.size) ? t.size : '6';
+      return {
+        id: typeof t.id === 'string' && t.id ? t.id : uid(),
+        kind,
+        size,
+        tall: !!t.tall,
+        title: typeof t.title === 'string' && t.title ? t.title : 'Tile',
+        icon: typeof t.icon === 'string' && t.icon in KIND_ICON ? t.icon : KIND_ICON[kind],
+        url: typeof t.url === 'string' ? t.url : undefined,
+        address: typeof t.address === 'string' ? t.address : undefined,
+      };
+    });
+  return out.length ? out : DEFAULT_TILES;
+}
+
+// 12x4 grid. This default set packs into exactly one page (no overflow).
+//   row 1    clock 6 + weather 6
+//   rows 2-3 notes 6 (tall) + youtube 6 (tall)
+//   row 4    home 3 + work 3 + fuel 3 + yt music 3
 export const DEFAULT_TILES: Tile[] = [
-  { id: 't-clock', kind: 'clock', size: '6', title: 'Clock', icon: '🕒' },
-  { id: 't-weather', kind: 'weather', size: '6', title: 'Weather', icon: '🌤️' },
-  { id: 't-notes', kind: 'notes', size: '6', tall: true, title: 'Quick notes', icon: '📝' },
-  { id: 't-yt', kind: 'youtube', size: '6', tall: true, title: 'YouTube', icon: '▶️' },
-  { id: 't-home', kind: 'maps', size: '3', title: 'Home', icon: '🏠', address: '' },
-  { id: 't-work', kind: 'maps', size: '3', title: 'Work', icon: '💼', address: '' },
-  { id: 't-ytm', kind: 'shortcut', size: '6', title: 'YouTube Music', icon: '🎵', url: 'https://music.youtube.com' },
-  { id: 't-fuel', kind: 'shortcut', size: '6', title: 'Nearby fuel', icon: '⛽', url: 'https://www.google.com/maps/search/fuel+near+me' },
+  { id: 't-clock', kind: 'clock', size: '6', title: 'Clock', icon: 'clock' },
+  { id: 't-weather', kind: 'weather', size: '6', title: 'Weather', icon: 'cloud' },
+  { id: 't-notes', kind: 'notes', size: '6', tall: true, title: 'Notes', icon: 'notes' },
+  { id: 't-yt', kind: 'youtube', size: '6', tall: true, title: 'YouTube', icon: 'play' },
+  { id: 't-home', kind: 'maps', size: '3', title: 'Home', icon: 'pin', address: '' },
+  { id: 't-work', kind: 'maps', size: '3', title: 'Work', icon: 'pin', address: '' },
+  { id: 't-fuel', kind: 'shortcut', size: '3', title: 'Fuel', icon: 'fuel', url: 'https://www.google.com/maps/search/fuel+near+me' },
+  { id: 't-ytm', kind: 'shortcut', size: '3', title: 'YT Music', icon: 'music', url: 'https://music.youtube.com' },
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -64,7 +104,7 @@ export const uid = () =>
 
 export async function loadLayout(): Promise<Tile[]> {
   const v = await get<Tile[]>(K_LAYOUT).catch(() => undefined);
-  return v?.length ? v : DEFAULT_TILES;
+  return normalizeTiles(v);
 }
 export const saveLayout = (t: Tile[]) => set(K_LAYOUT, t);
 
@@ -89,7 +129,7 @@ export function parseImport(json: string): { tiles: Tile[]; notes: Note[]; setti
     const o = JSON.parse(json);
     if (o?.app !== 'gari' || !Array.isArray(o.tiles)) return null;
     return {
-      tiles: o.tiles,
+      tiles: normalizeTiles(o.tiles),
       notes: Array.isArray(o.notes) ? o.notes : [],
       settings: { ...DEFAULT_SETTINGS, ...o.settings },
     };

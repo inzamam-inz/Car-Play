@@ -20,13 +20,8 @@ export function codeLabel(code: number): string {
   if (code <= 99) return 'Storm';
   return '—';
 }
-export function codeIcon(code: number): string {
-  if (code === 0) return '☀️';
-  if (code <= 3) return '⛅';
-  if (code <= 49) return '🌫️';
-  if (code <= 69) return '🌧️';
-  if (code <= 79) return '❄️';
-  return '⛈️';
+export function codeKind(code: number): 'sun' | 'cloud' {
+  return code === 0 ? 'sun' : 'cloud';
 }
 
 function gps(): Promise<GeolocationPosition> {

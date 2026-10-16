@@ -1,25 +1,61 @@
 # Gari — Car Display
 
-Personal offline-first car dashboard. Tesla look, CarPlay layout. Runs in Brave on Android + iPad.
+A personal, offline-first car dashboard that runs in the browser and installs to
+your home screen. Tesla visual language, CarPlay-style layout, IBM Plex Mono.
 
-## Run locally
+## Run
 
 ```sh
 npm install
 npm run dev -- --host --port 5173
 ```
 
-Open the printed LAN URL on your phone/tablet.
+Open the printed LAN URL on your phone or tablet.
 
 ## Install
 
-- **Android (chrome-free):** open the hosted URL in **Chrome** → ⋮ → Add to Home screen.
-- **iPad (chrome-free):** open in **Safari** → Share → Add to Home Screen.
-- **Brave daily use:** Add to Home screen opens a normal tab — tap **⛶ Car** in the status bar for true fullscreen + landscape lock.
+| Device | Steps | Result |
+| --- | --- | --- |
+| Android (Brave) | Menu → Add to Home screen | Shortcut that keeps the toolbar — tap the expand icon in the top bar for true fullscreen |
+| Android (Chrome) | Menu → Add to Home screen | Chrome-free standalone app |
+| iPad | Safari → Share → Add to Home Screen | Chrome-free standalone app |
+
+Brave cannot install a standalone PWA on either platform, so the app ships an
+in-app fullscreen + landscape-lock button (`src/lib/fullscreen.ts`) that makes
+Brave look identical to an installed app.
+
+## Features
+
+- **Dashboard grid** — 12×4 tile grid, swipeable pages, edit mode (move, resize, delete)
+- **Clock / date** with day–night theming
+- **Weather** — GPS via Open-Meteo (no API key), cached so it survives offline
+- **Notes** — quick capture, mark done, stored on device
+- **Navigation shortcuts** — Home / Work / custom destinations deep-link into Apple or Google Maps
+- **YouTube** — embedded playlist that plays while the screen is on, plus a YouTube Music shortcut
+- **Keep awake** — Screen Wake Lock with a silent-video fallback for iOS
+- **Backup** — copy / restore layout, notes and settings as JSON
+
+## Project layout
+
+```
+src/
+  app.tsx            shell: status bar, rail, grid, dock, tray
+  lib/
+    store.ts         IndexedDB persistence + tile normalisation
+    session.ts       wake lock + fallback
+    fullscreen.ts    fullscreen + orientation lock
+    weather.ts       GPS + Open-Meteo
+    platform.ts      standalone / iOS / Android detection
+  tiles/bodies.tsx   tile renderers
+  panels/panels.tsx  notes, weather, shortcuts, youtube, settings, launcher
+  ui/icons.tsx       stroke icon set
+  styles/            design tokens + layout
+scripts/make-icons.mjs  generates the PWA PNG icons
+```
 
 ## Notes
 
-- HTTPS required for install (GitHub Pages provides it).
-- Weather: Open-Meteo, no API key. GPS permission needs one tap; or set a city in Settings.
-- YouTube: embedded playlist plays while the screen is on; YouTube Music is a hand-off shortcut (no embed API).
-- Keep-awake: status-bar Wake chip; on iPad also set Auto-Lock → Never while driving.
+- HTTPS is required for install; GitHub Pages provides it.
+- Weather needs one tap on the location prompt, or set a city in Settings.
+- `npm run icons` regenerates the app icons after editing the mark in `scripts/make-icons.mjs`.
+- If you rename the GitHub repo, update `base` in `vite.config.ts` to match, or assets will 404.

@@ -4,13 +4,14 @@ import {
   type Note, type Settings, type Tile,
 } from './lib/store';
 import { DEFAULT_SETTINGS } from './lib/store';
-import { fetchWeather, fmtTemp, type Wx } from './lib/weather';
+import { fetchWeather, fmtTemp, codeLabel, type Wx } from './lib/weather';
 import { nowParts } from './lib/clock';
 import { capabilityReport, isStandalone } from './lib/platform';
 import { SessionKeeper, bindVisibilityReacquire } from './lib/session';
 import { enterCarMode, exitCarMode } from './lib/fullscreen';
 import { ClockBody, NotesBody, ShortcutBody, WeatherBody, YouTubeBody, activateTile } from './tiles/bodies';
 import { LauncherPanel, NotesPanel, SettingsPanel, ShortcutsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
+import { Icon, type IconName } from './ui/icons';
 
 type RailKey = 'home' | 'notes' | 'weather' | 'youtube' | 'settings';
 
@@ -184,29 +185,40 @@ export function App() {
     <div class="shell">
       <header class="statusbar">
         <div>
-          <span class="clock">{clock.time}</span>
+          <span class="time">{clock.time}</span>
           <span class="date">{clock.date}</span>
         </div>
-        <div class="wx">{wx ? `${fmtTemp(wx.tempC, settings.units)} - ${wx.place}` : 'Locating...'}</div>
+        <div class="wx">
+          {wx ? `${fmtTemp(wx.tempC, settings.units)} · ${codeLabel(wx.code)} · ${wx.place}` : 'Locating…'}
+        </div>
         <div class="right">
           {!isStandalone() && (
-            <button class="chip" onClick={toggleCar} title="Fullscreen + landscape">⛶ Car</button>
+            <button class="icon-btn" onClick={toggleCar} title="Fullscreen and lock landscape">
+              <Icon name="expand" size={19} />
+            </button>
           )}
-          <button class={`chip${awake ? ' on' : ''}`} onClick={toggleAwake} title="Keep screen awake">
-            {awake ? '☀ Awake' : '🌙 Wake'}
+          <button class={`icon-btn${awake ? ' on' : ''}`} onClick={toggleAwake} title="Keep screen awake">
+            <Icon name="bolt" size={19} />
           </button>
-          <button class="chip" onClick={() => setSettings({ ...settings, theme: night ? 'day' : 'night' })}>
-            {night ? '🌙' : '☀️'}
+          <button
+            class={`icon-btn${settings.brightness > 0 ? ' on' : ''}`}
+            onClick={() => setSettings({ ...settings, brightness: settings.brightness > 0 ? 0 : 0.4 })}
+            title="Dim display"
+          >
+            <Icon name="dim" size={19} />
+          </button>
+          <button class="icon-btn" onClick={() => setSettings({ ...settings, theme: night ? 'day' : 'night' })} title="Day / night">
+            <Icon name={night ? 'moon' : 'sun'} size={19} />
           </button>
         </div>
       </header>
 
       <nav class="rail">
-        <RailBtn active={rail === 'home'} icon="🏠" label="Home" onClick={() => railGo('home')} />
-        <RailBtn active={rail === 'notes'} icon="📝" label="Notes" onClick={() => railGo('notes')} />
-        <RailBtn active={rail === 'weather'} icon="🌤️" label="Wx" onClick={() => railGo('weather')} />
-        <RailBtn active={rail === 'youtube'} icon="▶️" label="Tube" onClick={() => railGo('youtube')} />
-        <RailBtn active={rail === 'settings'} icon="⚙️" label="Set" onClick={() => railGo('settings')} />
+        <RailBtn active={rail === 'home'} icon="dash" label="Dash" onClick={() => railGo('home')} />
+        <RailBtn active={rail === 'notes'} icon="notes" label="Notes" onClick={() => railGo('notes')} />
+        <RailBtn active={rail === 'weather'} icon="cloud" label="Wx" onClick={() => railGo('weather')} />
+        <RailBtn active={rail === 'youtube'} icon="play" label="Tube" onClick={() => railGo('youtube')} />
+        <RailBtn active={rail === 'settings'} icon="gear" label="Set" onClick={() => railGo('settings')} />
       </nav>
 
       <main class="canvas" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -237,28 +249,17 @@ export function App() {
                   >
                     {editing && (
                       <div class="tile-tools" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => moveTile(t.id, -1)}>◀</button>
-                        <button onClick={() => moveTile(t.id, 1)}>▶</button>
-                        <button onClick={() => cycleSize(t.id)}>⤢</button>
-                        <button onClick={() => deleteTile(t.id)}>✕</button>
+                        <button onClick={() => moveTile(t.id, -1)} title="Move earlier"><Icon name="chevL" size={18} /></button>
+                        <button onClick={() => moveTile(t.id, 1)} title="Move later"><Icon name="chevR" size={18} /></button>
+                        <button onClick={() => cycleSize(t.id)} title="Resize"><Icon name="expand" size={18} /></button>
+                        <button onClick={() => deleteTile(t.id)} title="Remove"><Icon name="x" size={18} /></button>
                       </div>
                     )}
                     {t.kind === 'clock' && <ClockBody />}
                     {t.kind === 'weather' && <WeatherBody wx={wx} settings={settings} />}
-                    {t.kind === 'notes' && (
-                      <div>
-                        <div class="t-icon">📝</div>
-                        <div class="t-label">Notes</div>
-                        <NotesBody notes={notes} />
-                      </div>
-                    )}
+                    {t.kind === 'notes' && <NotesBody notes={notes} />}
                     {(t.kind === 'shortcut' || t.kind === 'maps') && <ShortcutBody tile={t} />}
-                    {t.kind === 'youtube' && (
-                      <div>
-                        <div class="t-label">▶ YouTube</div>
-                        <YouTubeBody settings={settings} />
-                      </div>
-                    )}
+                    {t.kind === 'youtube' && <YouTubeBody settings={settings} />}
                   </div>
                 );
               })}
@@ -268,34 +269,33 @@ export function App() {
         {pages.length > 1 && (
           <div class="dots">{pages.map((_, i) => <i key={i} class={i === page ? 'on' : ''} />)}</div>
         )}
-        <div class="rotate-hint">🔄 Rotate to landscape for the full dash</div>
+        <div class="rotate-hint">Rotate to landscape for the full dash</div>
       </main>
 
       <footer class="dock">
         <div class="group">
-          <button class="dock-btn" onClick={() => {
-            const v = prompt('Quick note:');
-            if (v && v.trim()) setNotes([{ id: `${Date.now()}`, text: v.trim(), done: false, updatedAt: Date.now() }, ...notes]);
-          }}>
-            ✏️ Note
+          <button class="dock-btn" onClick={() => openPanel('notes')}>
+            <Icon name={editing ? 'plus' : 'pencil'} size={17} />
+            {editing ? 'Add tile' : 'Note'}
           </button>
-          {editing && (
-            <button class="dock-btn" onClick={() => openPanel('shortcuts')}>＋ Add tile</button>
-          )}
         </div>
         <div class="group">
-          <button class="dock-btn primary" onClick={() => openPanel('launcher')}>🚗 Apps</button>
+          <button class="dock-btn primary" onClick={() => openPanel('launcher')}>
+            <Icon name="car" size={17} /> Apps
+          </button>
         </div>
         <div class="group">
-          <button class="dock-btn" onClick={() => setEditing(!editing)}>{editing ? '✓ Done' : 'Edit'}</button>
-          <button class="dock-btn" onClick={() => setSettings({ ...settings, brightness: settings.brightness > 0 ? 0 : 0.35 })}>🔆</button>
+          <button class="dock-btn" onClick={() => setEditing(!editing)}>
+            <Icon name={editing ? 'check' : 'gear'} size={17} />
+            {editing ? 'Done' : 'Edit'}
+          </button>
         </div>
       </footer>
 
       <div class={`scrim${panel ? ' open' : ''}`} onClick={() => setPanel(null)} />
       <section class={`tray${panel ? ' open' : ''}`}>
-        {panel === 'notes' && <NotesPanel notes={notes} setNotes={setNotes} quickAdd="" />}
-        {panel === 'weather' && <WeatherPanel wx={wx} refresh={refreshWx} />}
+        {panel === 'notes' && <NotesPanel notes={notes} setNotes={setNotes} />}
+        {panel === 'weather' && <WeatherPanel wx={wx} settings={settings} refresh={refreshWx} />}
         {panel === 'shortcuts' && <ShortcutsPanel tiles={tiles} setTiles={setTiles} />}
         {panel === 'youtube' && <YouTubePanel settings={settings} setSettings={setSettings} />}
         {panel === 'settings' && (
@@ -317,10 +317,10 @@ export function App() {
   );
 }
 
-function RailBtn({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
+function RailBtn({ active, icon, label, onClick }: { active: boolean; icon: IconName; label: string; onClick: () => void }) {
   return (
     <button class={`rail-btn${active ? ' active' : ''}`} onClick={onClick}>
-      <span style={{ fontSize: 28 }}>{icon}</span>
+      <Icon name={icon} size={22} />
       {label}
     </button>
   );
