@@ -24,15 +24,41 @@ Brave cannot install a standalone PWA on either platform, so the app ships an
 in-app fullscreen + landscape-lock button (`src/lib/fullscreen.ts`) that makes
 Brave look identical to an installed app.
 
+## Views
+
+The left rail is the only navigation — there is no bottom bar.
+
+| Rail | What it is |
+| --- | --- |
+| **Dashboard** | The 12×4 tile grid. Tap a tile to open its panel. Swipe for more pages. |
+| **Navigation** | Live map viewport, a large speed meter, destination chips and an optional music player. |
+| **Settings** | Theme, units, city override, YouTube playlist, backup and restore. |
+| **Edit** *(bottom)* | Always-on dashboard editor: resize, reorder, remove, and add tiles. |
+
+In **Edit**, each tile shows four controls — move earlier, move later, resize
+(cycles ¼ → ½ → full width), and remove. **Add tile** opens the built-in set
+(clock, weather, speed, notes, YouTube) plus custom Link and Maps tiles.
+
+### A note on Navigation
+
+The map is Google Maps' keyless `output=embed` viewport. **It cannot do
+turn-by-turn navigation** — Google deliberately keeps routing inside its own
+app. So pick a destination chip and hit **Start navigation**, which deep-links
+into the real Google Maps (Android) or Apple Maps (iOS).
+
+Destination chips come from your Maps tiles. A chip with no address yet shows a
+pencil and takes you to Edit to set one, rather than searching for the literal
+word "Home".
+
 ## Features
 
-- **Dashboard grid** — 12×4 tile grid, swipeable pages, edit mode (move, resize, delete)
+- **Dashboard grid** — 12×4 tile grid, swipeable pages
 - **Clock / date** with day–night theming
 - **Speed** — GPS ground speed in km/h or mph with a compass heading, from the device GPS
 - **Weather** — GPS via Open-Meteo (no API key), cached so it survives offline
 - **Notes** — quick capture, mark done, stored on device
-- **Navigation shortcuts** — Home / Work / custom destinations deep-link into Apple or Google Maps
-- **YouTube** — embedded playlist that plays while the screen is on, plus a YouTube Music shortcut
+- **Navigation** — map viewport plus Home / Work / custom destination deep links
+- **Music** — embedded YouTube playlist in the Navigation view, plus a YouTube Music shortcut tile
 - **Keep awake** — Screen Wake Lock with a silent-video fallback for iOS
 - **Backup** — copy / restore layout, notes and settings as JSON
 
@@ -40,16 +66,19 @@ Brave look identical to an installed app.
 
 ```
 src/
-  app.tsx            shell: status bar, rail, grid, dock, tray
+  app.tsx            shell: status bar, left rail, views, tray
+  views/
+    navigation.tsx   map viewport, speed meter, destinations, music
   lib/
     store.ts         IndexedDB persistence + tile normalisation
     session.ts       wake lock + fallback
     fullscreen.ts    fullscreen + orientation lock
     weather.ts       GPS + Open-Meteo
-    speed.ts         GPS ground speed + compass
+    speed.ts         GPS ground speed, compass, shared useGeo hook
+    maps.ts          keyless Maps embed URLs
     platform.ts      standalone / iOS / Android detection
   tiles/bodies.tsx   tile renderers
-  panels/panels.tsx  notes, weather, shortcuts, youtube, settings, launcher
+  panels/panels.tsx  notes, weather, add-tile, settings panels
   ui/icons.tsx       stroke icon set
   styles/            design tokens + layout
 scripts/make-icons.mjs  generates the PWA PNG icons

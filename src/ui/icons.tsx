@@ -16,6 +16,7 @@ const P: Record<string, JSX.Element> = {
       <path d="M9 8h6M9 12h6M9 16h4" />
     </>
   ),
+  nav: <path d="M12 3.2 19 20.5l-7-3.9-7 3.9L12 3.2Z" />,
   cloud: (
     <>
       <path d="M7 18h9a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.6-1A3.5 3.5 0 0 0 7 18Z" />

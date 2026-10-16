@@ -1,7 +1,7 @@
 import type { Tile, Note, Settings } from '../lib/store';
 import type { Wx } from '../lib/weather';
 import { codeLabel, fmtTemp, codeKind } from '../lib/weather';
-import { compass, formatSpeed } from '../lib/speed';
+import { compass, formatSpeed, useGeo } from '../lib/speed';
 import { mapsUrl, nowParts } from '../lib/clock';
 import { Icon } from '../ui/icons';
 import { useEffect, useState } from 'preact/hooks';
@@ -51,28 +51,8 @@ export function WeatherBody({ wx, settings }: { wx: Wx | null; settings: Setting
 }
 
 export function SpeedBody({ settings }: { settings: Settings }) {
-  const [mps, setMps] = useState<number | null>(null);
-  const [heading, setHeading] = useState<number | null>(null);
-  const [err, setErr] = useState('');
-
-  useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      setErr('GPS unavailable');
-      return;
-    }
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        setMps(p.coords.speed);
-        setHeading(p.coords.heading);
-        setErr('');
-      },
-      () => setErr('GPS blocked'),
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
-
-  const { value, unit } = formatSpeed(mps, settings.units);
+  const geo = useGeo();
+  const { value, unit } = formatSpeed(geo.mps, settings.units);
   return (
     <>
       <div class="t-top">
@@ -83,7 +63,7 @@ export function SpeedBody({ settings }: { settings: Settings }) {
         {value}
         <span class="t-unit">{unit}</span>
       </div>
-      <div class="t-sub">{err || compass(heading)}</div>
+      <div class="t-sub">{geo.error || compass(geo.heading)}</div>
     </>
   );
 }

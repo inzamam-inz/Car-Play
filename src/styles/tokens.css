@@ -18,8 +18,7 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   --status-h: 52px;
-  --rail-w: 84px;
-  --dock-h: 68px;
+  --rail-w: 88px;
 
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);

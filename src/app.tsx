@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
   loadLayout, saveLayout, loadNotes, saveNotes, loadSettings, saveSettings,
-  type Note, type Settings, type Tile,
+  DEFAULT_SETTINGS, type Note, type Settings, type Tile,
 } from './lib/store';
-import { DEFAULT_SETTINGS } from './lib/store';
 import { fetchWeather, fmtTemp, codeLabel, type Wx } from './lib/weather';
 import { nowParts } from './lib/clock';
 import { capabilityReport, isStandalone } from './lib/platform';
 import { SessionKeeper, bindVisibilityReacquire } from './lib/session';
 import { enterCarMode, exitCarMode } from './lib/fullscreen';
 import { ClockBody, NotesBody, ShortcutBody, SpeedBody, WeatherBody, YouTubeBody, activateTile } from './tiles/bodies';
-import { LauncherPanel, NotesPanel, SettingsPanel, ShortcutsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
+import { NotesPanel, SettingsPanel, ShortcutsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
+import { NavigationView } from './views/navigation';
 import { Icon, type IconName } from './ui/icons';
 
-type RailKey = 'home' | 'notes' | 'weather' | 'youtube' | 'settings';
+// The four left-rail destinations. There is no bottom bar.
+type ViewKey = 'dashboard' | 'navigation' | 'settings' | 'edit';
 
 const COLS = 12;
 const ROWS = 4;
@@ -30,8 +31,7 @@ interface Placed {
 // (rendered as gridColumn/gridRow), so a page can never overflow.
 function packPages(tiles: Tile[]): Placed[][] {
   const pages: Placed[][] = [];
-  const fresh = () =>
-    Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const fresh = () => Array.from({ length: ROWS }, () => Array(COLS).fill(false));
   let grid: boolean[][] = fresh();
   let cur: Placed[] = [];
   for (const tile of tiles) {
@@ -70,17 +70,15 @@ export function App() {
   const [notes, setNotesState] = useState<Note[]>([]);
   const [settings, setSettingsState] = useState<Settings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
-  const [rail, setRail] = useState<RailKey>('home');
+  const [view, setView] = useState<ViewKey>('dashboard');
   const [panel, setPanel] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const [editing, setEditing] = useState(false);
   const [wx, setWx] = useState<Wx | null>(null);
   const [clock, setClock] = useState(nowParts());
   const [awake, setAwake] = useState(false);
   const [carMode, setCarMode] = useState(isStandalone());
   const [debug, setDebug] = useState('');
   const keeper = useRef(new SessionKeeper());
-  const holdTimer = useRef<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -120,17 +118,13 @@ export function App() {
     if (page > pages.length - 1) setPage(Math.max(0, pages.length - 1));
   }, [pages.length, page]);
 
+  const go = (v: ViewKey) => { setView(v); setPanel(null); setPage(0); };
+
+  // Tiles ask for a panel; the add-tile form lives inside the Edit view.
   const openPanel = (p: string) => {
+    if (p === 'shortcuts') return go('edit');
+    if (p === 'settings') return go('settings');
     setPanel(p);
-    if (p === 'notes') setRail('notes');
-    if (p === 'weather') setRail('weather');
-    if (p === 'youtube') setRail('youtube');
-    if (p === 'settings') setRail('settings');
-  };
-  const railGo = (r: RailKey) => {
-    setRail(r);
-    if (r === 'home') setPanel(null);
-    else openPanel(r === 'notes' ? 'notes' : r);
   };
 
   const toggleAwake = async () => {
@@ -142,8 +136,6 @@ export function App() {
     else { const ok = await enterCarMode(); setCarMode(ok || isStandalone()); }
   };
 
-  const startHold = () => { holdTimer.current = setTimeout(() => setEditing(true), 550); };
-  const endHold = () => clearTimeout(holdTimer.current);
   const moveTile = (id: string, dir: -1 | 1) => {
     const i = tiles.findIndex((t) => t.id === id);
     const j = i + dir;
@@ -157,15 +149,11 @@ export function App() {
   const cycleSize = (id: string) => {
     setTiles(
       tiles.map((t) =>
-        t.id === id
-          ? { ...t, size: t.size === '3' ? '6' : t.size === '6' ? '12' : '3' }
-          : t,
+        t.id === id ? { ...t, size: t.size === '3' ? '6' : t.size === '6' ? '12' : '3' } : t,
       ),
     );
   };
-  const deleteTile = (id: string) => {
-    setTiles(tiles.filter((x) => x.id !== id));
-  };
+  const deleteTile = (id: string) => setTiles(tiles.filter((x) => x.id !== id));
 
   const ctx = { tiles, notes, settings, wx, openPanel };
 
@@ -179,7 +167,46 @@ export function App() {
     touchX.current = null;
   };
 
-  if (!loaded) return <div style={{ padding: 40, fontSize: 20 }}>Loading Gari...</div>;
+  const grid = (editing: boolean) => (
+    <div class="pages" style={{ transform: `translateX(-${page * 100}%)` }}>
+      {pages.map((pg, i) => (
+        <div class="page" key={i}>
+          {pg.map((p) => {
+            const t = p.tile;
+            return (
+              <div
+                key={t.id}
+                class={`tile${editing ? ' editing' : ''}`}
+                style={{ gridColumn: `${p.x + 1} / span ${p.w}`, gridRow: `${p.y + 1} / span ${p.h}` }}
+                onClick={() => {
+                  if (editing) return;
+                  if (t.kind === 'notes') openPanel('notes');
+                  else activateTile(t, ctx);
+                }}
+              >
+                {editing && (
+                  <div class="tile-tools" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => moveTile(t.id, -1)} title="Move earlier"><Icon name="chevL" size={18} /></button>
+                    <button onClick={() => moveTile(t.id, 1)} title="Move later"><Icon name="chevR" size={18} /></button>
+                    <button onClick={() => cycleSize(t.id)} title="Resize"><Icon name="expand" size={18} /></button>
+                    <button onClick={() => deleteTile(t.id)} title="Remove"><Icon name="x" size={18} /></button>
+                  </div>
+                )}
+                {t.kind === 'clock' && <ClockBody />}
+                {t.kind === 'speed' && <SpeedBody settings={settings} />}
+                {t.kind === 'weather' && <WeatherBody wx={wx} settings={settings} />}
+                {t.kind === 'notes' && <NotesBody notes={notes} />}
+                {(t.kind === 'shortcut' || t.kind === 'maps') && <ShortcutBody tile={t} />}
+                {t.kind === 'youtube' && <YouTubeBody settings={settings} />}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+
+  if (!loaded) return <div style={{ padding: 40, fontSize: 20 }}>Loading Gari…</div>;
 
   return (
     <div class="shell">
@@ -214,101 +241,71 @@ export function App() {
       </header>
 
       <nav class="rail">
-        <RailBtn active={rail === 'home'} icon="dash" label="Dash" onClick={() => railGo('home')} />
-        <RailBtn active={rail === 'notes'} icon="notes" label="Notes" onClick={() => railGo('notes')} />
-        <RailBtn active={rail === 'weather'} icon="cloud" label="Wx" onClick={() => railGo('weather')} />
-        <RailBtn active={rail === 'youtube'} icon="play" label="Tube" onClick={() => railGo('youtube')} />
-        <RailBtn active={rail === 'settings'} icon="gear" label="Set" onClick={() => railGo('settings')} />
+        <RailBtn active={view === 'dashboard'} icon="dash" label="Dashboard" onClick={() => go('dashboard')} />
+        <RailBtn active={view === 'navigation'} icon="nav" label="Navigation" onClick={() => go('navigation')} />
+        <RailBtn active={view === 'settings'} icon="gear" label="Settings" onClick={() => go('settings')} />
+        <div class="rail-spacer" />
+        <RailBtn active={view === 'edit'} icon="pencil" label="Edit" onClick={() => go('edit')} />
       </nav>
 
-      <main class="canvas" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        {!pages.length && (
-          <div style={{ padding: 40 }}>
-            <p class="hint">No tiles yet. Tap Edit, then add a tile to build your dash.</p>
+      <main class="main">
+        {view === 'dashboard' && (
+          <div class="view-dash" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            {!pages.length && (
+              <p class="hint empty">No tiles yet — open Edit in the left rail to build your dash.</p>
+            )}
+            {grid(false)}
+            {pages.length > 1 && (
+              <div class="dots">{pages.map((_, i) => <i key={i} class={i === page ? 'on' : ''} />)}</div>
+            )}
+            <div class="rotate-hint">Rotate to landscape for the full dash</div>
           </div>
         )}
-        <div class="pages" style={{ transform: `translateX(-${page * 100}%)` }}>
-          {pages.map((pg, i) => (
-            <div class="page" key={i}>
-              {pg.map((p) => {
-                const t = p.tile;
-                return (
-                  <div
-                    key={t.id}
-                    class={`tile${editing ? ' editing' : ''}`}
-                    style={{ gridColumn: `${p.x + 1} / span ${p.w}`, gridRow: `${p.y + 1} / span ${p.h}` }}
-                    onTouchStart={startHold}
-                    onTouchEnd={endHold}
-                    onMouseDown={startHold}
-                    onMouseUp={endHold}
-                    onClick={() => {
-                      if (editing) return;
-                      if (t.kind === 'notes') openPanel('notes');
-                      else activateTile(t, ctx);
-                    }}
-                  >
-                    {editing && (
-                      <div class="tile-tools" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => moveTile(t.id, -1)} title="Move earlier"><Icon name="chevL" size={18} /></button>
-                        <button onClick={() => moveTile(t.id, 1)} title="Move later"><Icon name="chevR" size={18} /></button>
-                        <button onClick={() => cycleSize(t.id)} title="Resize"><Icon name="expand" size={18} /></button>
-                        <button onClick={() => deleteTile(t.id)} title="Remove"><Icon name="x" size={18} /></button>
-                      </div>
-                    )}
-                    {t.kind === 'clock' && <ClockBody />}
-                    {t.kind === 'speed' && <SpeedBody settings={settings} />}
-                    {t.kind === 'weather' && <WeatherBody wx={wx} settings={settings} />}
-                    {t.kind === 'notes' && <NotesBody notes={notes} />}
-                    {(t.kind === 'shortcut' || t.kind === 'maps') && <ShortcutBody tile={t} />}
-                    {t.kind === 'youtube' && <YouTubeBody settings={settings} />}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-        {pages.length > 1 && (
-          <div class="dots">{pages.map((_, i) => <i key={i} class={i === page ? 'on' : ''} />)}</div>
-        )}
-        <div class="rotate-hint">Rotate to landscape for the full dash</div>
-      </main>
 
-      <footer class="dock">
-        <div class="group">
-          <button class="dock-btn" onClick={() => openPanel('notes')}>
-            <Icon name={editing ? 'plus' : 'pencil'} size={17} />
-            {editing ? 'Add tile' : 'Note'}
-          </button>
-        </div>
-        <div class="group">
-          <button class="dock-btn primary" onClick={() => openPanel('launcher')}>
-            <Icon name="car" size={17} /> Apps
-          </button>
-        </div>
-        <div class="group">
-          <button class="dock-btn" onClick={() => setEditing(!editing)}>
-            <Icon name={editing ? 'check' : 'gear'} size={17} />
-            {editing ? 'Done' : 'Edit'}
-          </button>
-        </div>
-      </footer>
+        {view === 'navigation' && <NavigationView settings={settings} tiles={tiles} onEdit={() => go('edit')} />}
+
+        {view === 'settings' && (
+          <div class="view-scroll">
+            <SettingsPanel
+              settings={settings}
+              setSettings={setSettings}
+              tiles={tiles}
+              setTiles={setTiles}
+              notes={notes}
+              setNotes={setNotes}
+              wxRefresh={refreshWx}
+            />
+            <div class="debug">{debug}</div>
+          </div>
+        )}
+
+        {view === 'edit' && (
+          <div class="view-col">
+            <div class="edit-bar">
+              <span class="micro">Edit dashboard</span>
+              <div class="row">
+                <button class="btn primary" onClick={() => setPanel('add')}>
+                  <Icon name="plus" size={16} /> Add tile
+                </button>
+              </div>
+            </div>
+            <div class="edit-canvas">
+              {!pages.length && <p class="hint empty">No tiles yet — tap Add tile to start.</p>}
+              {grid(true)}
+            </div>
+          </div>
+        )}
+      </main>
 
       <div class={`scrim${panel ? ' open' : ''}`} onClick={() => setPanel(null)} />
       <section class={`tray${panel ? ' open' : ''}`}>
         {panel === 'notes' && <NotesPanel notes={notes} setNotes={setNotes} />}
         {panel === 'weather' && <WeatherPanel wx={wx} settings={settings} refresh={refreshWx} />}
-        {panel === 'shortcuts' && <ShortcutsPanel tiles={tiles} setTiles={setTiles} />}
         {panel === 'youtube' && <YouTubePanel settings={settings} setSettings={setSettings} />}
-        {panel === 'settings' && (
-          <SettingsPanel settings={settings} setSettings={setSettings} tiles={tiles} setTiles={setTiles} notes={notes} setNotes={setNotes} wxRefresh={refreshWx} />
-        )}
-        {panel === 'launcher' && <LauncherPanel openPanel={openPanel} />}
+        {panel === 'add' && <ShortcutsPanel tiles={tiles} setTiles={setTiles} />}
         {panel && (
-          <div>
-            <div class="row" style={{ marginTop: 16 }}>
-              <button class="btn" onClick={() => setPanel(null)}>Close</button>
-            </div>
-            {panel === 'settings' && <div class="debug">{debug}</div>}
+          <div class="row" style={{ marginTop: 16 }}>
+            <button class="btn" onClick={() => setPanel(null)}>Close</button>
           </div>
         )}
       </section>

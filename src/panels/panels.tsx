@@ -286,8 +286,7 @@ export function SettingsPanel({
         </button>
       </div>
       <div class="field">
-        <label>Paste backup JSON to restore</label>
-        <textarea
+        <label>Paste backup JSON to restore</label>        <textarea
           value={imp}
           onInput={(e) => setImp((e.target as HTMLTextAreaElement).value)}
           placeholder='{"app":"gari", …}'
@@ -311,29 +310,6 @@ export function SettingsPanel({
         install from Chrome on Android or Safari on iPad (Share → Add to Home Screen).
         On iPad, set Auto-Lock to Never while driving so the display stays on.
       </p>
-    </div>
-  );
-}
-
-export function LauncherPanel({ openPanel }: { openPanel: (p: string) => void }) {
-  const apps: { icon: IconName; label: string; panel: string }[] = [
-    { icon: 'notes', label: 'Notes', panel: 'notes' },
-    { icon: 'cloud', label: 'Weather', panel: 'weather' },
-    { icon: 'play', label: 'YouTube', panel: 'youtube' },
-    { icon: 'plus', label: 'Add tile', panel: 'shortcuts' },
-    { icon: 'gear', label: 'Settings', panel: 'settings' },
-  ];
-  return (
-    <div>
-      <h2>Apps</h2>
-      <div class="app-grid">
-        {apps.map((a) => (
-          <button class="app-cell" key={a.panel} onClick={() => openPanel(a.panel)}>
-            <Icon name={a.icon} size={22} />
-            {a.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
