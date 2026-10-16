@@ -1,0 +1,44 @@
+:root {
+  --bg: #000000;
+  --canvas: #0a0a0b;
+  --surface: #141416;
+  --raised: #1c1c1f;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #ededed;
+  --text-2: #9a9aa0;
+  --accent: #3e9bff;
+  --success: #34c759;
+  --warn: #ffb020;
+  --danger: #ff5a54;
+  --card-radius: 20px;
+  --font: 'Inter', -apple-system, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+[data-theme='day'] {
+  --bg: #e8e9ec;
+  --canvas: #f4f4f6;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --text: #101014;
+  --text-2: #5a5a62;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #app { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
+}
+button { font-family: inherit; }

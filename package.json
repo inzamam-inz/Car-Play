@@ -1,0 +1,21 @@
+{
+  "name": "gari",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "idb-keyval": "^6.2.1",
+    "preact": "^10.24.3"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.9.3",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}
