@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { Note, Settings, Tile } from '../lib/store';
-import { uid, exportAll, parseImport, DEFAULT_TILES, DEFAULT_SETTINGS } from '../lib/store';
+import { uid, exportAll, parseImport, DEFAULT_TILES, DEFAULT_SETTINGS, BUILTIN_TILES } from '../lib/store';
 import { fmtTemp, codeLabel } from '../lib/weather';
 import type { Wx } from '../lib/weather';
 import { mapsUrl } from '../lib/clock';
@@ -123,6 +123,29 @@ export function ShortcutsPanel({
           <Icon name="pin" size={16} /> Maps
         </button>
       </div>
+
+      <div class="field">
+        <label>Built-in</label>
+        <div class="picker">
+          {BUILTIN_TILES.map((b) => (
+            <button
+              key={b.kind}
+              class="builtin"
+              title={`Add ${b.title}`}
+              onClick={() =>
+                setTiles([
+                  ...tiles,
+                  { id: uid(), kind: b.kind, size: b.size, tall: b.tall, title: b.title, icon: b.icon },
+                ])
+              }
+            >
+              <Icon name={b.icon} size={18} />
+              {b.title}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div class="field">
         <label>Title</label>
         <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} placeholder="Home, Fuel…" />

@@ -7,7 +7,8 @@ export type TileKind =
   | 'notes'
   | 'shortcut'
   | 'youtube'
-  | 'maps';
+  | 'maps'
+  | 'speed';
 
 export interface Tile {
   id: string;
@@ -42,6 +43,7 @@ const K_NOTES = 'gari.notes.v1';
 const K_SETTINGS = 'gari.settings.v1';
 
 const SIZES: TileSize[] = ['3', '6', '12'];
+const KINDS: TileKind[] = ['clock', 'weather', 'notes', 'shortcut', 'youtube', 'maps', 'speed'];
 const KIND_ICON: Record<TileKind, string> = {
   clock: 'clock',
   weather: 'cloud',
@@ -49,7 +51,17 @@ const KIND_ICON: Record<TileKind, string> = {
   youtube: 'play',
   maps: 'pin',
   shortcut: 'link',
+  speed: 'speed',
 };
+
+// Built-in tiles that can be added from the Add-tile panel.
+export const BUILTIN_TILES: { kind: TileKind; title: string; icon: string; size: TileSize; tall?: boolean }[] = [
+  { kind: 'clock', title: 'Clock', icon: 'clock', size: '3' },
+  { kind: 'weather', title: 'Weather', icon: 'cloud', size: '3' },
+  { kind: 'speed', title: 'Speed', icon: 'speed', size: '3' },
+  { kind: 'notes', title: 'Notes', icon: 'notes', size: '6', tall: true },
+  { kind: 'youtube', title: 'YouTube', icon: 'play', size: '6', tall: true },
+];
 
 // Tiles can arrive from older versions, hand-edited backups, or partial
 // writes. Coerce everything so a bad value can never break the grid packing.
@@ -58,9 +70,7 @@ export function normalizeTiles(input: unknown): Tile[] {
   const out = input
     .filter((t) => t && typeof t === 'object')
     .map((t: any): Tile => {
-      const kind: TileKind = (['clock', 'weather', 'notes', 'shortcut', 'youtube', 'maps'] as string[]).includes(t.kind)
-        ? t.kind
-        : 'shortcut';
+      const kind: TileKind = KINDS.includes(t.kind) ? t.kind : 'shortcut';
       const size: TileSize = SIZES.includes(t.size) ? t.size : '6';
       return {
         id: typeof t.id === 'string' && t.id ? t.id : uid(),
@@ -79,14 +89,14 @@ export function normalizeTiles(input: unknown): Tile[] {
 // 12x4 grid. This default set packs into exactly one page (no overflow).
 //   row 1    clock 6 + weather 6
 //   rows 2-3 notes 6 (tall) + youtube 6 (tall)
-//   row 4    home 3 + work 3 + fuel 3 + yt music 3
+//   row 4    speed 3 + home 3 + fuel 3 + yt music 3
 export const DEFAULT_TILES: Tile[] = [
   { id: 't-clock', kind: 'clock', size: '6', title: 'Clock', icon: 'clock' },
   { id: 't-weather', kind: 'weather', size: '6', title: 'Weather', icon: 'cloud' },
   { id: 't-notes', kind: 'notes', size: '6', tall: true, title: 'Notes', icon: 'notes' },
   { id: 't-yt', kind: 'youtube', size: '6', tall: true, title: 'YouTube', icon: 'play' },
+  { id: 't-speed', kind: 'speed', size: '3', title: 'Speed', icon: 'speed' },
   { id: 't-home', kind: 'maps', size: '3', title: 'Home', icon: 'pin', address: '' },
-  { id: 't-work', kind: 'maps', size: '3', title: 'Work', icon: 'pin', address: '' },
   { id: 't-fuel', kind: 'shortcut', size: '3', title: 'Fuel', icon: 'fuel', url: 'https://www.google.com/maps/search/fuel+near+me' },
   { id: 't-ytm', kind: 'shortcut', size: '3', title: 'YT Music', icon: 'music', url: 'https://music.youtube.com' },
 ];
@@ -106,19 +116,23 @@ export async function loadLayout(): Promise<Tile[]> {
   const v = await get<Tile[]>(K_LAYOUT).catch(() => undefined);
   return normalizeTiles(v);
 }
-export const saveLayout = (t: Tile[]) => set(K_LAYOUT, t);
+// Writes are best-effort. Private browsing, quota limits and a corrupted
+// store must degrade to "not saved", never to an unhandled rejection.
+const put = (key: string, value: unknown) => set(key, value).catch(() => undefined);
+
+export const saveLayout = (t: Tile[]) => put(K_LAYOUT, t);
 
 export async function loadNotes(): Promise<Note[]> {
   const v = await get<Note[]>(K_NOTES).catch(() => undefined);
   return v ?? [];
 }
-export const saveNotes = (n: Note[]) => set(K_NOTES, n);
+export const saveNotes = (n: Note[]) => put(K_NOTES, n);
 
 export async function loadSettings(): Promise<Settings> {
   const v = await get<Settings>(K_SETTINGS).catch(() => undefined);
   return { ...DEFAULT_SETTINGS, ...v };
 }
-export const saveSettings = (s: Settings) => set(K_SETTINGS, s);
+export const saveSettings = (s: Settings) => put(K_SETTINGS, s);
 
 export function exportAll(t: Tile[], n: Note[], s: Settings): string {
   return JSON.stringify({ app: 'gari', v: 1, tiles: t, notes: n, settings: s }, null, 2);

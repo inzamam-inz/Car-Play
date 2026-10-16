@@ -28,6 +28,7 @@ Brave look identical to an installed app.
 
 - **Dashboard grid** — 12×4 tile grid, swipeable pages, edit mode (move, resize, delete)
 - **Clock / date** with day–night theming
+- **Speed** — GPS ground speed in km/h or mph with a compass heading, from the device GPS
 - **Weather** — GPS via Open-Meteo (no API key), cached so it survives offline
 - **Notes** — quick capture, mark done, stored on device
 - **Navigation shortcuts** — Home / Work / custom destinations deep-link into Apple or Google Maps
@@ -45,6 +46,7 @@ src/
     session.ts       wake lock + fallback
     fullscreen.ts    fullscreen + orientation lock
     weather.ts       GPS + Open-Meteo
+    speed.ts         GPS ground speed + compass
     platform.ts      standalone / iOS / Android detection
   tiles/bodies.tsx   tile renderers
   panels/panels.tsx  notes, weather, shortcuts, youtube, settings, launcher

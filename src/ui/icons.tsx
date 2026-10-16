@@ -102,6 +102,13 @@ const P: Record<string, JSX.Element> = {
       <circle cx="16.5" cy="18.5" r="1.6" />
     </>
   ),
+  speed: (
+    <>
+      <path d="M3.5 17.5a8.5 8.5 0 0 1 17 0" />
+      <path d="M12 17.5l4.4-5.6" />
+      <circle cx="12" cy="17.5" r="1.2" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="8.5" />

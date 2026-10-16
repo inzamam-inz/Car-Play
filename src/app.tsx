@@ -9,7 +9,7 @@ import { nowParts } from './lib/clock';
 import { capabilityReport, isStandalone } from './lib/platform';
 import { SessionKeeper, bindVisibilityReacquire } from './lib/session';
 import { enterCarMode, exitCarMode } from './lib/fullscreen';
-import { ClockBody, NotesBody, ShortcutBody, WeatherBody, YouTubeBody, activateTile } from './tiles/bodies';
+import { ClockBody, NotesBody, ShortcutBody, SpeedBody, WeatherBody, YouTubeBody, activateTile } from './tiles/bodies';
 import { LauncherPanel, NotesPanel, SettingsPanel, ShortcutsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
 import { Icon, type IconName } from './ui/icons';
 
@@ -256,6 +256,7 @@ export function App() {
                       </div>
                     )}
                     {t.kind === 'clock' && <ClockBody />}
+                    {t.kind === 'speed' && <SpeedBody settings={settings} />}
                     {t.kind === 'weather' && <WeatherBody wx={wx} settings={settings} />}
                     {t.kind === 'notes' && <NotesBody notes={notes} />}
                     {(t.kind === 'shortcut' || t.kind === 'maps') && <ShortcutBody tile={t} />}
