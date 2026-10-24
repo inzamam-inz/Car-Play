@@ -1,12 +1,13 @@
+import { useRef, useState } from 'preact/hooks';
 import type { Settings, Tile } from '../lib/store';
-import { mapsUrl } from '../lib/clock';
-import { embedUrl } from '../lib/maps';
+import { embedUrl, directionsUrl } from '../lib/maps';
 import { compass, formatSpeed, useGeo } from '../lib/speed';
 import { Icon } from '../ui/icons';
 
-// Google Maps cannot do turn-by-turn inside an iframe, so the map here is a
-// live viewport and the chips below deep-link into the real navigation app.
-// The destination lives in App state so a Location tile can land here directly.
+// The map runs entirely inside this view: a place viewport normally, and
+// Google's keyless directions embed once a route is started. Nothing opens a
+// browser tab. The destination lives in App state so a Location tile on the
+// Dashboard can land here directly.
 export function NavigationView({
   settings,
   tiles,
@@ -26,13 +27,41 @@ export function NavigationView({
   const destTitle = places.find((p) => p.address && p.address === dest)?.title;
   const speed = formatSpeed(geo.mps, settings.units);
 
-  const embed = embedUrl({
-    dest: dest || settings.city,
-    lat: geo.lat,
-    lon: geo.lon,
-  });
+  // Freeze the origin. Using live coords would rewrite the iframe src on every
+  // GPS tick and reload the map once a second.
+  const originRef = useRef('');
+  if (!originRef.current && geo.lat != null && geo.lon != null) {
+    originRef.current = `${geo.lat},${geo.lon}`;
+  }
+  const [, bump] = useState(0);
+  const recenter = () => {
+    if (geo.lat == null || geo.lon == null) return;
+    originRef.current = `${geo.lat},${geo.lon}`;
+    bump((n) => n + 1);
+  };
 
-  const drive = (d: string) => window.open(mapsUrl(d), '_blank', 'noopener');
+  const origin = originRef.current || settings.city;
+  const canRoute = !!origin && !!dest;
+
+  /** Routes are tied to the destination they were started for, so changing
+   *  the destination automatically drops back to the place view. */
+  const [navFor, setNavFor] = useState<string | null>(null);
+  const navigating = navFor !== null && navFor === dest;
+
+  // Choosing a destination always leaves route mode, so re-picking a previous
+  // place does not silently resume an old route.
+  const choose = (next: string) => {
+    setNavFor(null);
+    setDest(next);
+  };
+
+  const [olat, olon] = originRef.current
+    ? originRef.current.split(',').map(Number)
+    : [null, null];
+
+  const embed = navigating && origin
+    ? directionsUrl(origin, dest)
+    : embedUrl({ dest: dest || settings.city, lat: olat, lon: olon });
 
   return (
     <div class="nav-grid">
@@ -41,7 +70,7 @@ export function NavigationView({
           <iframe
             key={embed}
             src={embed}
-            title="Map"
+            title={navigating ? 'Directions' : 'Map'}
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
           />
@@ -53,11 +82,23 @@ export function NavigationView({
             </p>
           </div>
         )}
+
         <div class="nav-map-badge micro">
-          {destTitle ||
-            dest ||
-            (geo.lat != null ? 'Current location' : settings.city || geo.error || 'No fix')}
+          {navigating
+            ? `Route · ${destTitle || dest}`
+            : destTitle ||
+              dest ||
+              (geo.lat != null ? 'Current location' : settings.city || geo.error || 'No fix')}
         </div>
+
+        <button
+          class="icon-btn map-recenter"
+          onClick={recenter}
+          disabled={geo.lat == null}
+          title="Recenter on me"
+        >
+          <Icon name="nav" size={16} />
+        </button>
       </section>
 
       <aside class="nav-side">
@@ -71,34 +112,59 @@ export function NavigationView({
         </div>
 
         <div class="card">
-          <div class="micro">Destinations</div>
-          <div class="chips">
-            {geo.lat != null && geo.lon != null && (
-              <button class="chip-btn" onClick={() => drive(`${geo.lat},${geo.lon}`)}>
-                <Icon name="nav" size={15} /> My location
-              </button>
-            )}
-            {places.map((p) => (
-              <button
-                key={p.id}
-                class={`chip-btn${p.address && dest === p.address ? ' on' : ''}`}
-                onClick={() => {
-                  // An unset destination would search for the literal title.
-                  if (!p.address) return onEdit();
-                  setDest(dest === p.address ? '' : p.address);
-                }}
-                title={p.address || 'No address yet — tap to set one in Edit'}
-              >
-                <Icon name={p.icon} size={15} /> {p.title}
-                {!p.address && <Icon name="pencil" size={12} />}
-              </button>
-            ))}
-            {!places.length && <p class="hint">Add a Location tile in Edit to see destinations here.</p>}
-          </div>
-          {dest && (
-            <button class="btn primary wide" onClick={() => drive(dest)}>
-              <Icon name="nav" size={16} /> Start navigation
-            </button>
+          <div class="micro">{navigating ? 'Routing' : 'Destinations'}</div>
+
+          {navigating ? (
+            <>
+              <div class="route-row">
+                <Icon name="nav" size={15} />
+                <span class="route-to">{destTitle || dest}</span>
+              </div>
+              <button class="btn wide" onClick={() => setNavFor(null)}>End route</button>
+            </>
+          ) : (
+            <>
+              <div class="chips">
+                {geo.lat != null && geo.lon != null && (
+                  <button
+                    class="chip-btn"
+                    onClick={() => choose(dest === `${geo.lat},${geo.lon}` ? '' : `${geo.lat},${geo.lon}`)}
+                  >
+                    <Icon name="pin" size={15} /> My location
+                  </button>
+                )}
+                {places.map((p) => (
+                  <button
+                    key={p.id}
+                    class={`chip-btn${p.address && dest === p.address ? ' on' : ''}`}
+                    onClick={() => {
+                      // An unset destination would search for the literal title.
+                      if (!p.address) return onEdit();
+                      choose(dest === p.address ? '' : p.address);
+                    }}
+                    title={p.address || 'No address yet — tap to set one in Edit'}
+                  >
+                    <Icon name={p.icon} size={15} /> {p.title}
+                    {!p.address && <Icon name="pencil" size={12} />}
+                  </button>
+                ))}
+                {!places.length && (
+                  <p class="hint">Add a Location tile in Edit to see destinations here.</p>
+                )}
+              </div>
+              {dest && (
+                <button
+                  class="btn primary wide"
+                  disabled={!canRoute}
+                  onClick={() => setNavFor(dest)}
+                >
+                  <Icon name="nav" size={16} /> Start navigation
+                </button>
+              )}
+              {dest && !canRoute && (
+                <p class="hint">Needs a GPS fix or a city set in Settings to calculate a route.</p>
+              )}
+            </>
           )}
         </div>
 

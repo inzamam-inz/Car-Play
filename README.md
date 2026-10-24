@@ -31,7 +31,7 @@ The left rail is the only navigation — there is no bottom bar.
 | Rail | What it is |
 | --- | --- |
 | **Dashboard** | The 12×4 tile grid. Tap a tile to open its panel. Swipe for more pages. |
-| **Navigation** | Live map viewport, a large speed meter, destination chips and an optional music player. |
+| **Navigation** | Map with in-tab directions, a large speed meter, destination chips and an optional music player. |
 | **Settings** | Theme, units, city override, YouTube playlist, backup and restore. |
 | **Edit** *(bottom)* | Always-on dashboard editor: resize, reorder, remove, and add tiles. |
 
@@ -51,15 +51,36 @@ icon. Nothing is write-once.
 
 ### A note on Navigation
 
-The map is Google Maps' keyless `output=embed` viewport. **It cannot do
-turn-by-turn navigation** — Google deliberately keeps routing inside its own
-app. So pick a destination chip and hit **Start navigation**, which deep-links
-into the real Google Maps (Android) or Apple Maps (iOS).
+Everything happens inside the Navigation view — **no browser tabs, ever**.
 
 Tapping a Location tile on the Dashboard takes you straight to this view with
-that place already selected — it never opens a browser tab. (Web-link tiles do
-still open in a new tab.) A Location tile with no address yet takes you to Edit
-instead, since there is nothing to navigate to.
+that place already selected. (Web-link tiles are the exception: those still open
+in a new tab.) A Location tile with no address yet takes you to Edit instead,
+since there is nothing to navigate to.
+
+The map has two modes:
+
+- **Place view** — Google Maps' keyless `output=embed` viewport centred on the
+  selected destination.
+- **Route view** — **Start navigation** swaps the frame to Google's classic
+  keyless directions endpoint (`f=d` + `saddr`/`daddr` + `output=embed`), which
+  renders the route and its step list in place. **End route** returns to the
+  place view.
+
+Route mode hides the destination chips on purpose: one route at a time, and the
+only way out is **End route**, so an old route can never quietly resume. The
+origin is frozen when you start, so a moving GPS fix does not reload the map.
+
+Two honest limits of embedding Google Maps:
+
+1. **It is not live turn-by-turn.** There is no position tracking inside the
+   frame, no re-routing, no voice. It shows the route from the origin captured
+   at the moment you tapped Start.
+2. The `f=d` endpoint is Google's legacy keyless embed. It is not a
+   contract — if Google ever changes it, the route view degrades to a plain map.
+
+If you later want real turn-by-turn while driving, that needs the Google Maps
+app, not an iframe.
 
 Destination chips come from your Maps tiles. A chip with no address yet shows a
 pencil and takes you to Edit to set one, rather than searching for the literal
@@ -72,7 +93,7 @@ word "Home".
 - **Speed** — GPS ground speed in km/h or mph with a compass heading, from the device GPS
 - **Weather** — GPS via Open-Meteo (no API key), cached so it survives offline
 - **Notes** — quick capture, mark done, stored on device
-- **Navigation** — map viewport plus Home / Work / custom destination deep links
+- **Navigation** — keyless Google Maps view, in-tab directions, speed meter, one-tap destinations from your Location tiles
 - **Music** — embedded YouTube playlist in the Navigation view, plus a YouTube Music shortcut tile
 - **Keep awake** — Screen Wake Lock with a silent-video fallback for iOS
 - **Backup** — copy / restore layout, notes and settings as JSON
