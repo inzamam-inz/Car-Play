@@ -1,8 +1,13 @@
 // Minimal stroke icon set. Monochrome, inherits currentColor.
 // Kept deliberately small: one path map, one component.
 import type { JSX } from 'preact';
+import type { IconName } from './icon-names';
 
-const P: Record<string, JSX.Element> = {
+export type { IconName };
+
+// Record<IconName, …> makes the compiler enforce that every name in
+// icon-names.ts actually has artwork.
+const P: Record<IconName, JSX.Element> = {
   dash: (
     <>
       <path d="M4 13a8 8 0 0 1 16 0" />
@@ -46,6 +51,20 @@ const P: Record<string, JSX.Element> = {
     <>
       <path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10Z" />
       <circle cx="12" cy="11" r="2.2" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="M4 10.5 12 4l8 6.5" />
+      <path d="M6.5 9.6V20h11V9.6" />
+      <path d="M10 20v-5.2h4V20" />
+    </>
+  ),
+  work: (
+    <>
+      <rect x="3" y="7.5" width="18" height="12.5" rx="2" />
+      <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
+      <path d="M3 12.5h18" />
     </>
   ),
   link: (
@@ -129,10 +148,10 @@ const P: Record<string, JSX.Element> = {
   ),
 };
 
-export type IconName = keyof typeof P | string;
-
-export function Icon({ name, size = 24 }: { name: IconName; size?: number }) {
-  const body = P[name] ?? P.link;
+// `string` (not IconName) so persisted tile icons can be passed straight
+// through; unknown values fall back to the link glyph.
+export function Icon({ name, size = 24 }: { name: string; size?: number }) {
+  const body = P[name as IconName] ?? P.link;
   return (
     <svg
       viewBox="0 0 24 24"

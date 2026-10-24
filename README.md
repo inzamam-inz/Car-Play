@@ -36,8 +36,18 @@ The left rail is the only navigation — there is no bottom bar.
 | **Edit** *(bottom)* | Always-on dashboard editor: resize, reorder, remove, and add tiles. |
 
 In **Edit**, each tile shows four controls — move earlier, move later, resize
-(cycles ¼ → ½ → full width), and remove. **Add tile** opens the built-in set
-(clock, weather, speed, notes, YouTube) plus custom Link and Maps tiles.
+(cycles ¼ → ½ → full width), and remove. **Add tile** opens a catalogue:
+
+- **Quick add** — Clock, Weather, Speed, Notes, YouTube, YT Music
+- **With details** — Location and Web link
+
+**Location** has presets for **Home**, **Work**, **Fuel** and **Custom**. The
+address field accepts either a street address or a search phrase, so
+`gas station` works as well as `221B Baker Street`. Everything goes through
+Google Maps (Apple Maps on iOS).
+
+Tap any Location or Web-link tile *while in Edit* to change its name, address or
+icon. Nothing is write-once.
 
 ### A note on Navigation
 

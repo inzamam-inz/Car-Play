@@ -9,7 +9,7 @@ import { capabilityReport, isStandalone } from './lib/platform';
 import { SessionKeeper, bindVisibilityReacquire } from './lib/session';
 import { enterCarMode, exitCarMode } from './lib/fullscreen';
 import { ClockBody, NotesBody, ShortcutBody, SpeedBody, WeatherBody, YouTubeBody, activateTile } from './tiles/bodies';
-import { NotesPanel, SettingsPanel, ShortcutsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
+import { AddTilePanel, NotesPanel, SettingsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
 import { NavigationView } from './views/navigation';
 import { Icon, type IconName } from './ui/icons';
 
@@ -72,6 +72,8 @@ export function App() {
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<ViewKey>('dashboard');
   const [panel, setPanel] = useState<string | null>(null);
+  /** Tile currently being reconfigured from the Edit view. */
+  const [editTile, setEditTile] = useState<Tile | null>(null);
   const [page, setPage] = useState(0);
   const [wx, setWx] = useState<Wx | null>(null);
   const [clock, setClock] = useState(nowParts());
@@ -118,7 +120,11 @@ export function App() {
     if (page > pages.length - 1) setPage(Math.max(0, pages.length - 1));
   }, [pages.length, page]);
 
-  const go = (v: ViewKey) => { setView(v); setPanel(null); setPage(0); };
+  const go = (v: ViewKey) => { setView(v); setPanel(null); setEditTile(null); setPage(0); };
+
+  const closePanel = () => { setPanel(null); setEditTile(null); };
+  /** Open the add-tile tray, optionally pre-loaded to edit an existing tile. */
+  const openAdd = (t: Tile | null) => { setEditTile(t); setPanel('add'); };
 
   // Tiles ask for a panel; the add-tile form lives inside the Edit view.
   const openPanel = (p: string) => {
@@ -179,7 +185,11 @@ export function App() {
                 class={`tile${editing ? ' editing' : ''}`}
                 style={{ gridColumn: `${p.x + 1} / span ${p.w}`, gridRow: `${p.y + 1} / span ${p.h}` }}
                 onClick={() => {
-                  if (editing) return;
+                  if (editing) {
+                    // Locations and links are configurable; taps open the form.
+                    if (t.kind === 'maps' || t.kind === 'shortcut') openAdd(t);
+                    return;
+                  }
                   if (t.kind === 'notes') openPanel('notes');
                   else activateTile(t, ctx);
                 }}
@@ -282,9 +292,9 @@ export function App() {
         {view === 'edit' && (
           <div class="view-col">
             <div class="edit-bar">
-              <span class="micro">Edit dashboard</span>
+              <span class="micro">Edit dashboard · tap a location or link to change it</span>
               <div class="row">
-                <button class="btn primary" onClick={() => setPanel('add')}>
+                <button class="btn primary" onClick={() => openAdd(null)}>
                   <Icon name="plus" size={16} /> Add tile
                 </button>
               </div>
@@ -297,15 +307,23 @@ export function App() {
         )}
       </main>
 
-      <div class={`scrim${panel ? ' open' : ''}`} onClick={() => setPanel(null)} />
+      <div class={`scrim${panel ? ' open' : ''}`} onClick={closePanel} />
       <section class={`tray${panel ? ' open' : ''}`}>
         {panel === 'notes' && <NotesPanel notes={notes} setNotes={setNotes} />}
         {panel === 'weather' && <WeatherPanel wx={wx} settings={settings} refresh={refreshWx} />}
         {panel === 'youtube' && <YouTubePanel settings={settings} setSettings={setSettings} />}
-        {panel === 'add' && <ShortcutsPanel tiles={tiles} setTiles={setTiles} />}
+        {panel === 'add' && (
+          <AddTilePanel
+            key={editTile?.id ?? 'new'}
+            tiles={tiles}
+            setTiles={setTiles}
+            editTile={editTile}
+            onClose={closePanel}
+          />
+        )}
         {panel && (
           <div class="row" style={{ marginTop: 16 }}>
-            <button class="btn" onClick={() => setPanel(null)}>Close</button>
+            <button class="btn" onClick={closePanel}>Close</button>
           </div>
         )}
       </section>

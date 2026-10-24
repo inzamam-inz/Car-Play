@@ -79,85 +79,173 @@ export function WeatherPanel({ wx, settings, refresh }: { wx: Wx | null; setting
   );
 }
 
-const ICON_CHOICES: IconName[] = ['pin', 'link', 'fuel', 'music', 'car', 'notes', 'clock', 'play', 'gear'];
+const ICON_CHOICES: IconName[] = [
+  'pin', 'home', 'work', 'fuel', 'car', 'music', 'link', 'play', 'notes', 'clock', 'gear',
+];
 
-export function ShortcutsPanel({
-  tiles, setTiles,
+// Presets for the place form. Fuel is a search phrase rather than a single
+// address, which is what "directions to fuel" actually means in practice.
+const PLACE_PRESETS: { title: string; icon: IconName; target?: string }[] = [
+  { title: 'Home', icon: 'home' },
+  { title: 'Work', icon: 'work' },
+  { title: 'Fuel', icon: 'fuel', target: 'gas station' },
+  { title: 'Custom', icon: 'pin' },
+];
+
+export function AddTilePanel({
+  tiles, setTiles, editTile, onClose,
 }: {
   tiles: Tile[];
   setTiles: (t: Tile[]) => void;
+  /** When set, the panel edits this tile instead of creating one. */
+  editTile: Tile | null;
+  onClose: () => void;
 }) {
-  const [kind, setKind] = useState<'shortcut' | 'maps'>('shortcut');
-  const [title, setTitle] = useState('');
-  const [target, setTarget] = useState('');
-  const [icon, setIcon] = useState<IconName>('link');
+  const [form, setForm] = useState<'place' | 'link' | null>(() =>
+    editTile ? (editTile.kind === 'maps' ? 'place' : 'link') : null,
+  );
+  const [editId, setEditId] = useState<string | null>(editTile?.id ?? null);
+  const [title, setTitle] = useState(editTile?.title ?? '');
+  const [target, setTarget] = useState(
+    editTile ? (editTile.kind === 'maps' ? editTile.address ?? '' : editTile.url ?? '') : '',
+  );
+  const [icon, setIcon] = useState<IconName>((editTile?.icon as IconName) ?? 'pin');
+
   const valid = title.trim() && target.trim();
 
-  const add = () => {
-    if (!valid) return;
+  const addQuick = (b: (typeof BUILTIN_TILES)[number]) => {
     const t: Tile = {
       id: uid(),
-      kind,
-      size: '3',
-      title: title.trim(),
-      icon,
-      ...(kind === 'maps' ? { address: target.trim() } : { url: target.trim() }),
+      kind: b.kind,
+      size: b.size,
+      tall: b.tall,
+      title: b.title,
+      icon: b.icon,
+      ...(b.url ? { url: b.url } : {}),
     };
     setTiles([...tiles, t]);
+    onClose();
+  };
+
+  const openForm = (kind: 'place' | 'link') => {
+    setForm(kind);
+    setEditId(null);
     setTitle('');
     setTarget('');
+    setIcon(kind === 'place' ? 'pin' : 'link');
   };
+
+  const submit = () => {
+    if (!valid) return;
+    const t = title.trim();
+    const v = target.trim();
+    if (editId) {
+      const existing = tiles.find((x) => x.id === editId);
+      if (!existing) return;
+      const next: Tile = {
+        ...existing,
+        title: t,
+        icon,
+        ...(form === 'place' ? { address: v, url: undefined } : { url: v, address: undefined }),
+      };
+      setTiles(tiles.map((x) => (x.id === editId ? next : x)));
+    } else {
+      const next: Tile = {
+        id: uid(),
+        kind: form === 'place' ? 'maps' : 'shortcut',
+        size: '3',
+        title: t,
+        icon,
+        ...(form === 'place' ? { address: v } : { url: v }),
+      };
+      setTiles([...tiles, next]);
+    }
+    onClose();
+  };
+
   const test = () => {
     if (!target.trim()) return;
-    window.open(kind === 'maps' ? mapsUrl(target.trim()) : target.trim(), '_blank', 'noopener');
+    window.open(form === 'place' ? mapsUrl(target.trim()) : target.trim(), '_blank', 'noopener');
   };
+
+  if (!form) {
+    return (
+      <div>
+        <h2>Add tile</h2>
+        <div class="field">
+          <label>Quick add</label>
+          <div class="picker">
+            {BUILTIN_TILES.map((b) => (
+              <button key={b.title} class="builtin" title={`Add ${b.title}`} onClick={() => addQuick(b)}>
+                <Icon name={b.icon} size={18} />
+                {b.title}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div class="field">
+          <label>With details</label>
+          <div class="picker">
+            <button class="builtin" onClick={() => openForm('place')}>
+              <Icon name="pin" size={18} /> Location
+            </button>
+            <button class="builtin" onClick={() => openForm('link')}>
+              <Icon name="link" size={18} /> Web link
+            </button>
+          </div>
+        </div>
+        <p class="hint">
+          Location covers Home, Work, fuel and any custom place. YouTube Music has no embed API,
+          so its tile opens the site.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2>Add tile</h2>
-      <div class="row">
-        <button class={`btn${kind === 'shortcut' ? ' primary' : ''}`} onClick={() => setKind('shortcut')}>
-          <Icon name="link" size={16} /> Link
-        </button>
-        <button class={`btn${kind === 'maps' ? ' primary' : ''}`} onClick={() => setKind('maps')}>
-          <Icon name="pin" size={16} /> Maps
-        </button>
-      </div>
+      <h2>{editId ? 'Edit' : 'Add'} {form === 'place' ? 'location' : 'link'}</h2>
 
-      <div class="field">
-        <label>Built-in</label>
-        <div class="picker">
-          {BUILTIN_TILES.map((b) => (
-            <button
-              key={b.kind}
-              class="builtin"
-              title={`Add ${b.title}`}
-              onClick={() =>
-                setTiles([
-                  ...tiles,
-                  { id: uid(), kind: b.kind, size: b.size, tall: b.tall, title: b.title, icon: b.icon },
-                ])
-              }
-            >
-              <Icon name={b.icon} size={18} />
-              {b.title}
-            </button>
-          ))}
+      {form === 'place' && (
+        <div class="field">
+          <label>Preset</label>
+          <div class="picker">
+            {PLACE_PRESETS.map((p) => (
+              <button
+                key={p.title}
+                class={`builtin${title === p.title ? ' on' : ''}`}
+                onClick={() => {
+                  setTitle(p.title === 'Custom' ? '' : p.title);
+                  setIcon(p.icon);
+                  if (p.target) setTarget(p.target);
+                }}
+              >
+                <Icon name={p.icon} size={18} />
+                {p.title}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div class="field">
         <label>Title</label>
-        <input value={title} onInput={(e) => setTitle((e.target as HTMLInputElement).value)} placeholder="Home, Fuel…" />
+        <input
+          value={title}
+          onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
+          placeholder={form === 'place' ? 'Home, Fuel, Gym…' : 'Radio, Podcast…'}
+        />
       </div>
+
       <div class="field">
-        <label>{kind === 'maps' ? 'Destination' : 'URL'}</label>
+        <label>{form === 'place' ? 'Address or search' : 'URL'}</label>
         <input
           value={target}
           onInput={(e) => setTarget((e.target as HTMLInputElement).value)}
-          placeholder={kind === 'maps' ? '221B Baker Street' : 'https://…'}
+          placeholder={form === 'place' ? '221B Baker Street — or gas station' : 'https://…'}
         />
       </div>
+
       <div class="field">
         <label>Icon</label>
         <div class="picker">
@@ -168,11 +256,13 @@ export function ShortcutsPanel({
           ))}
         </div>
       </div>
+
       <div class="row">
-        <button class="btn primary" disabled={!valid} onClick={add}>
-          <Icon name="plus" size={16} /> Add tile
+        <button class="btn primary" disabled={!valid} onClick={submit}>
+          <Icon name={editId ? 'check' : 'plus'} size={16} /> {editId ? 'Save' : 'Add tile'}
         </button>
         <button class="btn" disabled={!target.trim()} onClick={test}>Test open</button>
+        <button class="btn" onClick={() => { setForm(null); setEditId(null); }}>Back</button>
       </div>
     </div>
   );

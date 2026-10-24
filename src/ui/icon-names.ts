@@ -1,0 +1,35 @@
+// Single source of truth for icon names. Kept free of JSX so the store can
+// validate persisted icon values without importing components.
+export const ICON_NAMES = [
+  'dash',
+  'notes',
+  'nav',
+  'cloud',
+  'sun',
+  'moon',
+  'play',
+  'music',
+  'pin',
+  'home',
+  'work',
+  'link',
+  'fuel',
+  'gear',
+  'plus',
+  'pencil',
+  'check',
+  'x',
+  'chevL',
+  'chevR',
+  'expand',
+  'maximize',
+  'bolt',
+  'dim',
+  'car',
+  'clock',
+  'speed',
+  'trash',
+  'refresh',
+] as const;
+
+export type IconName = (typeof ICON_NAMES)[number];

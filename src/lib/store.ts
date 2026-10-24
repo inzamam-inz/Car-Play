@@ -1,4 +1,5 @@
 import { get, set } from 'idb-keyval';
+import { ICON_NAMES } from '../ui/icon-names';
 
 export type TileSize = '3' | '6' | '12';
 export type TileKind =
@@ -54,13 +55,22 @@ const KIND_ICON: Record<TileKind, string> = {
   speed: 'speed',
 };
 
-// Built-in tiles that can be added from the Add-tile panel.
-export const BUILTIN_TILES: { kind: TileKind; title: string; icon: string; size: TileSize; tall?: boolean }[] = [
+// Built-in tiles offered by the Add-tile panel. `url` marks the ones that are
+// really shortcuts (YT Music has no embeddable tile of its own).
+export const BUILTIN_TILES: {
+  kind: TileKind;
+  title: string;
+  icon: string;
+  size: TileSize;
+  tall?: boolean;
+  url?: string;
+}[] = [
   { kind: 'clock', title: 'Clock', icon: 'clock', size: '3' },
   { kind: 'weather', title: 'Weather', icon: 'cloud', size: '3' },
   { kind: 'speed', title: 'Speed', icon: 'speed', size: '3' },
   { kind: 'notes', title: 'Notes', icon: 'notes', size: '6', tall: true },
   { kind: 'youtube', title: 'YouTube', icon: 'play', size: '6', tall: true },
+  { kind: 'shortcut', title: 'YT Music', icon: 'music', size: '3', url: 'https://music.youtube.com' },
 ];
 
 // Tiles can arrive from older versions, hand-edited backups, or partial
@@ -78,7 +88,10 @@ export function normalizeTiles(input: unknown): Tile[] {
         size,
         tall: !!t.tall,
         title: typeof t.title === 'string' && t.title ? t.title : 'Tile',
-        icon: typeof t.icon === 'string' && t.icon in KIND_ICON ? t.icon : KIND_ICON[kind],
+        icon:
+          typeof t.icon === 'string' && (ICON_NAMES as readonly string[]).includes(t.icon)
+            ? t.icon
+            : KIND_ICON[kind],
         url: typeof t.url === 'string' ? t.url : undefined,
         address: typeof t.address === 'string' ? t.address : undefined,
       };
@@ -97,7 +110,7 @@ export const DEFAULT_TILES: Tile[] = [
   { id: 't-yt', kind: 'youtube', size: '6', tall: true, title: 'YouTube', icon: 'play' },
   { id: 't-speed', kind: 'speed', size: '3', title: 'Speed', icon: 'speed' },
   { id: 't-home', kind: 'maps', size: '3', title: 'Home', icon: 'pin', address: '' },
-  { id: 't-fuel', kind: 'shortcut', size: '3', title: 'Fuel', icon: 'fuel', url: 'https://www.google.com/maps/search/fuel+near+me' },
+  { id: 't-fuel', kind: 'maps', size: '3', title: 'Fuel', icon: 'fuel', address: 'gas station' },
   { id: 't-ytm', kind: 'shortcut', size: '3', title: 'YT Music', icon: 'music', url: 'https://music.youtube.com' },
 ];
 
