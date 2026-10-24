@@ -1,7 +1,7 @@
 import type { Tile, Note, Settings } from '../lib/store';
 import type { Wx } from '../lib/weather';
 import { codeLabel, fmtTemp, codeKind } from '../lib/weather';
-import { compass, formatSpeed, useGeo } from '../lib/speed';
+import { compass, formatSpeed, type Geo } from '../lib/speed';
 import { nowParts } from '../lib/clock';
 import { Icon } from '../ui/icons';
 import { useEffect, useState } from 'preact/hooks';
@@ -52,8 +52,7 @@ export function WeatherBody({ wx, settings }: { wx: Wx | null; settings: Setting
   );
 }
 
-export function SpeedBody({ settings }: { settings: Settings }) {
-  const geo = useGeo();
+export function SpeedBody({ settings, geo }: { settings: Settings; geo: Geo }) {
   const { value, unit } = formatSpeed(geo.mps, settings.units);
   return (
     <>

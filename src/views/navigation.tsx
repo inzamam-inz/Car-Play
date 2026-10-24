@@ -2,28 +2,215 @@ import { useRef, useState } from 'preact/hooks';
 import type { Settings, Tile } from '../lib/store';
 import { embedUrl, directionsUrl } from '../lib/maps';
 import { navAppUrl } from '../lib/clock';
-import { compass, formatSpeed, useGeo } from '../lib/speed';
+import { compass, formatSpeed, type Geo } from '../lib/speed';
+import {
+  distanceParts,
+  elapsedMs,
+  fmtDuration,
+  type Trip,
+  type TripApi,
+} from '../lib/trip';
 import { Icon } from '../ui/icons';
 
-// The map runs entirely inside this view: a place viewport normally, and
-// Google's keyless directions embed once a route is started. Nothing opens a
-// browser tab. The destination lives in App state so a Location tile on the
-// Dashboard can land here directly.
+type Units = Settings['units'];
+
+// Three states, three views: a live trip (the map is useless to someone already
+// driving with Google Maps, so the board shows numbers instead), the summary of
+// a trip just stopped, and the normal place/route preview.
 export function NavigationView({
   settings,
   tiles,
+  geo,
+  trip,
   dest,
   setDest,
   onEdit,
 }: {
   settings: Settings;
   tiles: Tile[];
+  geo: Geo;
+  trip: TripApi;
   /** Address or search phrase currently shown, '' for wherever we are. */
   dest: string;
   setDest: (d: string) => void;
   onEdit: () => void;
 }) {
-  const geo = useGeo();
+  if (trip.active) {
+    return <TripView settings={settings} geo={geo} trip={trip.active} now={trip.now} stop={trip.stop} />;
+  }
+  if (trip.done) {
+    return <TripSummary settings={settings} trip={trip.done} now={trip.now} dismiss={trip.dismiss} />;
+  }
+  return (
+    <PlaceView
+      settings={settings}
+      tiles={tiles}
+      geo={geo}
+      dest={dest}
+      setDest={setDest}
+      onEdit={onEdit}
+      last={trip.last}
+      now={trip.now}
+      start={trip.start}
+    />
+  );
+}
+
+/** Live trip board. Replaces the map entirely while tracking. */
+function TripView({
+  settings,
+  geo,
+  trip,
+  now,
+  stop,
+}: {
+  settings: Settings;
+  geo: Geo;
+  trip: Trip;
+  now: number;
+  stop: () => void;
+}) {
+  const elapsed = elapsedMs(trip, now);
+  const speed = formatSpeed(geo.mps, settings.units);
+  const avg = formatSpeed(elapsed > 0 ? trip.distance / (elapsed / 1000) : null, settings.units);
+  const max = formatSpeed(trip.maxMps, settings.units);
+  const dist = distanceParts(trip.distance, settings.units);
+
+  return (
+    <div class="nav-grid">
+      <section class="trip-board">
+        <div class="trip-head">
+          <span class="trip-live"><i /> Tracking</span>
+          <span class="micro trip-dest" title={trip.dest}>{trip.dest || 'Trip'}</span>
+        </div>
+
+        <div class="trip-hero">
+          <span class="trip-speed">{speed.value}</span>
+          <span class="trip-unit">{speed.unit}</span>
+        </div>
+
+        <div class="trip-stats">
+          <Stat label="Elapsed" value={fmtDuration(elapsed)} />
+          <Stat label="Distance" value={dist.value} unit={dist.unit} />
+          <Stat label="Average" value={avg.value} unit={avg.unit} />
+          <Stat label="Max" value={max.value} unit={max.unit} />
+          <Stat label="Moving" value={fmtDuration(trip.movingMs)} />
+          <Stat label="Heading" value={compass(geo.heading)} />
+        </div>
+
+        <div class="trip-foot">
+          <p class="hint">
+            {geo.error
+              ? `${geo.error} — recording from the last good fix.`
+              : 'Stop when you arrive. Destination changes wait until the trip ends.'}
+          </p>
+          <button class="btn danger" onClick={stop}>
+            <Icon name="x" size={16} /> Stop trip
+          </button>
+        </div>
+      </section>
+
+      <aside class="nav-side">
+        <MusicCard settings={settings} />
+      </aside>
+    </div>
+  );
+}
+
+/** What the trip added up to, once stopped. */
+function TripSummary({
+  settings,
+  trip,
+  now,
+  dismiss,
+}: {
+  settings: Settings;
+  trip: Trip;
+  now: number;
+  dismiss: () => void;
+}) {
+  const elapsed = elapsedMs(trip, now);
+  const dist = distanceParts(trip.distance, settings.units);
+  const avg = formatSpeed(elapsed > 0 ? trip.distance / (elapsed / 1000) : null, settings.units);
+  const max = formatSpeed(trip.maxMps, settings.units);
+  const ended = trip.endedAt ?? now;
+
+  return (
+    <div class="nav-grid">
+      <section class="trip-board">
+        <div class="trip-head">
+          <span class="micro">Trip complete</span>
+          <span class="micro trip-dest" title={trip.dest}>{trip.dest || 'Trip'}</span>
+        </div>
+
+        <div class="trip-hero">
+          <span class="trip-speed">{dist.value}</span>
+          <span class="trip-unit">{dist.unit}</span>
+        </div>
+
+        <div class="trip-stats">
+          <Stat label="Elapsed" value={fmtDuration(elapsed)} />
+          <Stat label="Average" value={avg.value} unit={avg.unit} />
+          <Stat label="Max" value={max.value} unit={max.unit} />
+          <Stat label="Moving" value={fmtDuration(trip.movingMs)} />
+          <Stat label="Fixes" value={String(trip.fixes)} />
+          <Stat
+            label="Ended"
+            value={new Date(ended).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          />
+        </div>
+
+        <div class="trip-foot">
+          <p class="hint">
+            {trip.fixes < 2
+              ? 'Hardly any GPS fixes arrived. If the screen was off, the browser may have paused location.'
+              : 'Tracking is off. This trip is kept as the last trip.'}
+          </p>
+          <button class="btn" onClick={dismiss}>Done</button>
+        </div>
+      </section>
+
+      <aside class="nav-side">
+        <MusicCard settings={settings} />
+      </aside>
+    </div>
+  );
+}
+
+function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div class="trip-stat">
+      <span class="micro">{label}</span>
+      <b>
+        {value}
+        {unit ? <small>{unit}</small> : null}
+      </b>
+    </div>
+  );
+}
+
+/** Place viewport and route preview. */
+function PlaceView({
+  settings,
+  tiles,
+  geo,
+  dest,
+  setDest,
+  onEdit,
+  last,
+  now,
+  start,
+}: {
+  settings: Settings;
+  tiles: Tile[];
+  geo: Geo;
+  dest: string;
+  setDest: (d: string) => void;
+  onEdit: () => void;
+  last: Trip | null;
+  now: number;
+  start: (dest: string) => void;
+}) {
   const places = tiles.filter((t) => t.kind === 'maps' && t.title);
   const destTitle = places.find((p) => p.address && p.address === dest)?.title;
   const speed = formatSpeed(geo.mps, settings.units);
@@ -122,15 +309,18 @@ export function NavigationView({
                 <span class="route-to">{destTitle || dest}</span>
               </div>
               {/* The frame can draw a route but never drive it: no position
-                  tracking, no rerouting, no voice. So the last step hands the
-                  destination to the phone's own app. */}
-              <a class="btn primary wide" href={navAppUrl(dest)}>
+                  tracking, no rerouting, no voice. So the last step starts the
+                  trip log and hands the destination to the phone's own app. */}
+              <a
+                class="btn primary wide"
+                href={navAppUrl(dest)}
+                onClick={() => start(destTitle || dest)}
+              >
                 <Icon name="nav" size={16} /> Open in Maps app
               </a>
               <button class="btn wide" onClick={() => setNavFor(null)}>End preview</button>
               <p class="hint">
-                Live turn-by-turn, traffic and voice come from the Maps app. This preview
-                stays on screen until you end it.
+                This also starts the trip log, which keeps running until you press Stop.
               </p>
             </>
           ) : (
@@ -175,19 +365,32 @@ export function NavigationView({
               {dest && !canRoute && (
                 <p class="hint">Needs a GPS fix or a city set in Settings to calculate a route.</p>
               )}
+              {last && last.distance > 0 && (
+                <p class="hint">
+                  Last trip: {distanceParts(last.distance, settings.units).value}{' '}
+                  {distanceParts(last.distance, settings.units).unit} ·{' '}
+                  {fmtDuration(elapsedMs(last, now))}
+                </p>
+              )}
             </>
           )}
         </div>
 
-        <div class="card">
-          <div class="micro">Music</div>
-          {settings.ytPlaylist.trim() ? (
-            <MusicEmbed id={settings.ytPlaylist.trim()} />
-          ) : (
-            <p class="hint">Add a YouTube playlist ID in Settings to play music here.</p>
-          )}
-        </div>
+        <MusicCard settings={settings} />
       </aside>
+    </div>
+  );
+}
+
+function MusicCard({ settings }: { settings: Settings }) {
+  return (
+    <div class="card">
+      <div class="micro">Music</div>
+      {settings.ytPlaylist.trim() ? (
+        <MusicEmbed id={settings.ytPlaylist.trim()} />
+      ) : (
+        <p class="hint">Add a YouTube playlist ID in Settings to play music here.</p>
+      )}
     </div>
   );
 }

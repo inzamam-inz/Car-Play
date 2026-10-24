@@ -25,12 +25,25 @@ export interface Geo {
   heading: number | null;
   lat: number | null;
   lon: number | null;
+  /** Horizontal accuracy in metres; null when the fix omits it. */
+  accuracy: number | null;
+  /** Fix timestamp (epoch ms), used by the trip tracker to integrate distance. */
+  at: number | null;
   error: string;
 }
 
-// Single shared GPS watcher. Mounted per view, so only one watch is ever live.
+// Single shared GPS watcher, mounted once in App so the trip tracker and every
+// speed readout see the same fixes.
 export function useGeo(): Geo {
-  const [geo, setGeo] = useState<Geo>({ mps: null, heading: null, lat: null, lon: null, error: '' });
+  const [geo, setGeo] = useState<Geo>({
+    mps: null,
+    heading: null,
+    lat: null,
+    lon: null,
+    accuracy: null,
+    at: null,
+    error: '',
+  });
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -44,6 +57,8 @@ export function useGeo(): Geo {
           heading: p.coords.heading,
           lat: p.coords.latitude,
           lon: p.coords.longitude,
+          accuracy: p.coords.accuracy ?? null,
+          at: p.timestamp,
           error: '',
         }),
       () => setGeo((g) => ({ ...g, error: 'GPS blocked' })),

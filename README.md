@@ -31,7 +31,7 @@ The left rail is the only navigation — there is no bottom bar.
 | Rail | What it is |
 | --- | --- |
 | **Dashboard** | The 12×4 tile grid. Tap a tile to open its panel. Swipe for more pages. |
-| **Navigation** | Map with a route preview, one-tap handoff to the phone's Maps app, a large speed meter, destination chips and an optional music player. |
+| **Navigation** | Map with a route preview, handoff to the phone's Maps app, a live trip board, a large speed meter and an optional music player. |
 | **Settings** | Theme, units, city override, YouTube playlist, backup and restore. |
 | **Edit** *(bottom)* | Always-on dashboard editor: resize, reorder, remove, and add tiles. |
 
@@ -91,6 +91,49 @@ live in that app; this screen stays behind as the dashboard when you switch back
 One caveat: if a device has no maps app that answers `geo:`, nothing happens —
 Android almost always has Google Maps, so this is rare in practice.
 
+### Trip tracking
+
+Tapping **Open in Maps app** also starts the trip log. From then on the
+Navigation view stops showing a map — you are already being driven by a real
+navigator — and shows the numbers instead:
+
+| Field | Meaning |
+| --- | --- |
+| Speed *(hero)* | Live ground speed, km/h or mph per Settings |
+| Elapsed | Wall-clock time since the trip started |
+| Distance | Distance actually travelled, integrated from GPS fixes |
+| Average | Distance ÷ elapsed (includes stops) |
+| Max | Fastest instantaneous speed seen |
+| Moving | Time spent above walking pace |
+| Heading | Compass direction |
+
+**Stop trip** ends it and shows a summary, which is kept as the *last trip* and
+appears as a one-line footnote in the Destinations card (once it has actually
+covered some distance). Only one trip runs at a time, and the destination chips
+stay hidden while it does — stop first.
+
+Distance is measured, not predicted: successive fixes are joined by their
+great-circle distance. That means no API key, no routing service, and it records
+what you actually did. It also means the log is defensive about bad GPS:
+
+- a fix with accuracy worse than 100 m is ignored (it would invent distance)
+- an implied speed above ~300 km/h is treated as a teleport, not travel
+- a step under 3 m counts as jitter, not distance
+- below 1 m/s the time is not counted as *moving*
+
+Two honest limits:
+
+1. **It needs GPS to keep running.** If Android suspends the browser while you
+   are in another app, distance and moving time stop advancing (elapsed keeps
+   counting, because that is wall clock). Test this on your own phone — if it
+   pauses, run the dashboard on a second device, or keep it in the foreground.
+2. **Tunnels and car parks under-read.** No fixes, no distance. Expect a trip log
+   to be slightly short rather than slightly long, which is the safer direction.
+
+The trip is saved every few seconds, so a reload mid-drive resumes it (for up to
+six hours). Because a trip is worthless with a sleeping screen, tracking also
+turns on the **keep screen awake** lock; the header button can still undo it.
+
 Destination chips come from your Maps tiles. A chip with no address yet shows a
 pencil and takes you to Edit to set one, rather than searching for the literal
 word "Home".
@@ -103,6 +146,7 @@ word "Home".
 - **Weather** — GPS via Open-Meteo (no API key), cached so it survives offline
 - **Notes** — quick capture, mark done, stored on device
 - **Navigation** — keyless Google Maps view, in-tab route preview, handoff to the Maps app for real turn-by-turn, speed meter, one-tap destinations from your Location tiles
+- **Trip log** — distance, elapsed, average, max and moving time, integrated from the device GPS and resumed after a reload
 - **Music** — embedded YouTube playlist in the Navigation view, plus a YouTube Music shortcut tile
 - **Keep awake** — Screen Wake Lock with a silent-video fallback for iOS
 - **Backup** — copy / restore layout, notes and settings as JSON

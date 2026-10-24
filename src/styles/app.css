@@ -177,6 +177,55 @@
 }
 .route-row svg { color: var(--accent); flex: 0 0 auto; }
 .route-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- live trip board ---------- */
+.trip-board {
+  min-height: 220px; min-width: 0;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.trip-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  min-width: 0;
+}
+.trip-live {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent);
+}
+.trip-live i {
+  width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  animation: trip-pulse 2s var(--ease) infinite;
+}
+@keyframes trip-pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .trip-live i { animation: none; } }
+.trip-dest { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.trip-hero { display: flex; align-items: baseline; gap: 10px; }
+.trip-speed {
+  font-size: clamp(56px, 12vh, 118px); font-weight: 600; line-height: 0.9;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+}
+.trip-unit { font-size: 13px; color: var(--muted); letter-spacing: 0.14em; }
+.trip-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+}
+.trip-stat {
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+}
+.trip-stat b {
+  font-size: 22px; font-weight: 500; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.trip-stat small {
+  font-size: 11px; color: var(--muted); margin-left: 4px; letter-spacing: 0.08em;
+}
+.trip-foot {
+  margin-top: auto; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.trip-foot .hint { margin: 0; max-width: 46ch; }
 .nav-side { display: flex; flex-direction: column; gap: 14px; overflow: auto; min-height: 0; }
 .card {
   border: 1px solid var(--line); border-radius: var(--radius);

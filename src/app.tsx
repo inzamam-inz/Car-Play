@@ -7,6 +7,8 @@ import { fetchWeather, fmtTemp, codeLabel, type Wx } from './lib/weather';
 import { nowParts } from './lib/clock';
 import { capabilityReport, isStandalone } from './lib/platform';
 import { SessionKeeper, bindVisibilityReacquire } from './lib/session';
+import { useGeo } from './lib/speed';
+import { useTrip } from './lib/trip';
 import { enterCarMode, exitCarMode } from './lib/fullscreen';
 import { ClockBody, NotesBody, ShortcutBody, SpeedBody, WeatherBody, YouTubeBody, activateTile } from './tiles/bodies';
 import { AddTilePanel, NotesPanel, SettingsPanel, WeatherPanel, YouTubePanel } from './panels/panels';
@@ -84,6 +86,11 @@ export function App() {
   const [debug, setDebug] = useState('');
   const keeper = useRef(new SessionKeeper());
 
+  // One GPS watcher for the whole app: the speed tile, the navigation view and
+  // the trip recorder all read the same fixes.
+  const geo = useGeo();
+  const trip = useTrip(geo);
+
   useEffect(() => {
     (async () => {
       const [t, n, s] = await Promise.all([loadLayout(), loadNotes(), loadSettings()]);
@@ -116,6 +123,30 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = night ? 'night' : 'day';
   }, [night]);
+
+  // A trip is pointless if the screen sleeps and the browser freezes the page,
+  // so hold the screen awake while tracking, then let it go when the trip ends.
+  // If the user already had it on, leave their choice alone.
+  const autoAwake = useRef(false);
+  useEffect(() => {
+    if (!trip.active) {
+      if (!autoAwake.current) return;
+      autoAwake.current = false;
+      void keeper.current.release();
+      setAwake(false);
+      return;
+    }
+    if (awake) return;
+    keeper.current
+      .enable()
+      .then((mode) => {
+        if (mode === 'none') return;
+        autoAwake.current = true;
+        setAwake(true);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!trip.active]);
 
   const pages = useMemo(() => packPages(tiles), [tiles]);
   useEffect(() => {
@@ -214,7 +245,7 @@ export function App() {
                   </div>
                 )}
                 {t.kind === 'clock' && <ClockBody />}
-                {t.kind === 'speed' && <SpeedBody settings={settings} />}
+                {t.kind === 'speed' && <SpeedBody settings={settings} geo={geo} />}
                 {t.kind === 'weather' && <WeatherBody wx={wx} settings={settings} />}
                 {t.kind === 'notes' && <NotesBody notes={notes} />}
                 {(t.kind === 'shortcut' || t.kind === 'maps') && <ShortcutBody tile={t} />}
@@ -287,6 +318,8 @@ export function App() {
           <NavigationView
             settings={settings}
             tiles={tiles}
+            geo={geo}
+            trip={trip}
             dest={navDest}
             setDest={setNavDest}
             onEdit={() => go('edit')}
