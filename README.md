@@ -31,7 +31,7 @@ The left rail is the only navigation — there is no bottom bar.
 | Rail | What it is |
 | --- | --- |
 | **Dashboard** | The 12×4 tile grid. Tap a tile to open its panel. Swipe for more pages. |
-| **Navigation** | Map with a route preview, handoff to the phone's Maps app, a live trip board, a large speed meter and an optional music player. |
+| **Navigation** | Full-page map with destination dock, route preview, handoff to the phone's Maps app, and a live trip board. |
 | **Settings** | Theme, units, city override, YouTube playlist, backup and restore. |
 | **Edit** *(bottom)* | Always-on dashboard editor: resize, reorder, remove, and add tiles. |
 
@@ -59,7 +59,8 @@ since there is nothing to navigate to.
 The map has two modes, both inside the app:
 
 - **Place view** — Google Maps' keyless `output=embed` viewport centred on the
-  selected destination.
+  selected destination. The map is full-bleed; destinations sit in a dock over
+  its bottom edge.
 - **Route view** — **Preview route** swaps the frame to Google's classic keyless
   directions endpoint (`f=d` + `saddr`/`daddr` + `output=embed`), which renders
   the route and its step list in place.
@@ -147,7 +148,7 @@ word "Home".
 - **Notes** — quick capture, mark done, stored on device
 - **Navigation** — keyless Google Maps view, in-tab route preview, handoff to the Maps app for real turn-by-turn, speed meter, one-tap destinations from your Location tiles
 - **Trip log** — distance, elapsed, average, max and moving time, integrated from the device GPS and resumed after a reload
-- **Music** — embedded YouTube playlist in the Navigation view, plus a YouTube Music shortcut tile
+- **Music** — the YouTube tile on the Dashboard (playlist ID lives in Settings), plus a YouTube Music shortcut tile
 - **Keep awake** — Screen Wake Lock with a silent-video fallback for iOS
 - **Backup** — copy / restore layout, notes and settings as JSON
 
@@ -157,13 +158,14 @@ word "Home".
 src/
   app.tsx            shell: status bar, left rail, views, tray
   views/
-    navigation.tsx   map viewport, speed meter, destinations, music
+    navigation.tsx   full-page map, destination dock, route preview, trip board
   lib/
     store.ts         IndexedDB persistence + tile normalisation
     session.ts       wake lock + fallback
     fullscreen.ts    fullscreen + orientation lock
     weather.ts       GPS + Open-Meteo
     speed.ts         GPS ground speed, compass, shared useGeo hook
+    trip.ts          trip recorder: pure stepTrip reducer + useTrip hook
     maps.ts          keyless Maps embed URLs
     platform.ts      standalone / iOS / Android detection
   tiles/bodies.tsx   tile renderers

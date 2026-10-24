@@ -12,8 +12,6 @@ import {
 } from '../lib/trip';
 import { Icon } from '../ui/icons';
 
-type Units = Settings['units'];
-
 // Three states, three views: a live trip (the map is useless to someone already
 // driving with Google Maps, so the board shows numbers instead), the summary of
 // a trip just stopped, and the normal place/route preview.
@@ -56,7 +54,7 @@ export function NavigationView({
   );
 }
 
-/** Live trip board. Replaces the map entirely while tracking. */
+/** Live trip board. Takes the whole view while tracking. */
 function TripView({
   settings,
   geo,
@@ -109,10 +107,6 @@ function TripView({
           </button>
         </div>
       </section>
-
-      <aside class="nav-side">
-        <MusicCard settings={settings} />
-      </aside>
     </div>
   );
 }
@@ -169,10 +163,6 @@ function TripSummary({
           <button class="btn" onClick={dismiss}>Done</button>
         </div>
       </section>
-
-      <aside class="nav-side">
-        <MusicCard settings={settings} />
-      </aside>
     </div>
   );
 }
@@ -189,7 +179,7 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
   );
 }
 
-/** Place viewport and route preview. */
+/** Full-bleed map with a destination dock over the bottom edge. */
 function PlaceView({
   settings,
   tiles,
@@ -213,7 +203,6 @@ function PlaceView({
 }) {
   const places = tiles.filter((t) => t.kind === 'maps' && t.title);
   const destTitle = places.find((p) => p.address && p.address === dest)?.title;
-  const speed = formatSpeed(geo.mps, settings.units);
 
   // Freeze the origin. Using live coords would rewrite the iframe src on every
   // GPS tick and reload the map once a second.
@@ -251,6 +240,8 @@ function PlaceView({
     ? directionsUrl(origin, dest)
     : embedUrl({ dest: dest || settings.city, lat: olat, lon: olon });
 
+  const lastDist = last ? distanceParts(last.distance, settings.units) : null;
+
   return (
     <div class="nav-grid">
       <section class="nav-map">
@@ -271,37 +262,25 @@ function PlaceView({
           </div>
         )}
 
-        <div class="nav-map-badge micro">
-          {navigating
-            ? `Route · ${destTitle || dest}`
-            : destTitle ||
-              dest ||
-              (geo.lat != null ? 'Current location' : settings.city || geo.error || 'No fix')}
-        </div>
-
-        <button
-          class="icon-btn map-recenter"
-          onClick={recenter}
-          disabled={geo.lat == null}
-          title="Recenter on me"
-        >
-          <Icon name="nav" size={16} />
-        </button>
-      </section>
-
-      <aside class="nav-side">
-        <div class="card speed-card">
-          <div class="micro">Speed</div>
-          <div class="speed-hero">
-            {speed.value}
-            <span class="t-unit">{speed.unit}</span>
+        <div class="nav-head">
+          <div class="nav-map-badge micro">
+            {navigating
+              ? `Route · ${destTitle || dest}`
+              : destTitle ||
+                dest ||
+                (geo.lat != null ? 'Current location' : settings.city || geo.error || 'No fix')}
           </div>
-          <div class="t-sub">{geo.error || compass(geo.heading)}</div>
+          <button
+            class="icon-btn map-recenter"
+            onClick={recenter}
+            disabled={geo.lat == null}
+            title="Recenter on me"
+          >
+            <Icon name="nav" size={16} />
+          </button>
         </div>
 
-        <div class="card">
-          <div class="micro">{navigating ? 'Route preview' : 'Destinations'}</div>
-
+        <div class="nav-dock">
           {navigating ? (
             <>
               <div class="route-row">
@@ -311,17 +290,17 @@ function PlaceView({
               {/* The frame can draw a route but never drive it: no position
                   tracking, no rerouting, no voice. So the last step starts the
                   trip log and hands the destination to the phone's own app. */}
-              <a
-                class="btn primary wide"
-                href={navAppUrl(dest)}
-                onClick={() => start(destTitle || dest)}
-              >
-                <Icon name="nav" size={16} /> Open in Maps app
-              </a>
-              <button class="btn wide" onClick={() => setNavFor(null)}>End preview</button>
-              <p class="hint">
-                This also starts the trip log, which keeps running until you press Stop.
-              </p>
+              <div class="nav-dock-actions">
+                <a
+                  class="btn primary"
+                  href={navAppUrl(dest)}
+                  onClick={() => start(destTitle || dest)}
+                >
+                  <Icon name="nav" size={16} /> Open in Maps app
+                </a>
+                <button class="btn" onClick={() => setNavFor(null)}>End preview</button>
+              </div>
+              <p class="hint">Opening Maps also starts the trip log, until you press Stop.</p>
             </>
           ) : (
             <>
@@ -353,60 +332,32 @@ function PlaceView({
                   <p class="hint">Add a Location tile in Edit to see destinations here.</p>
                 )}
               </div>
-              {dest && (
-                <button
-                  class="btn primary wide"
-                  disabled={!canRoute}
-                  onClick={() => setNavFor(dest)}
-                >
-                  <Icon name="nav" size={16} /> Preview route
-                </button>
+
+              {dest ? (
+                <div class="nav-dock-actions">
+                  <button
+                    class="btn primary"
+                    disabled={!canRoute}
+                    onClick={() => setNavFor(dest)}
+                  >
+                    <Icon name="nav" size={16} /> Preview route
+                  </button>
+                </div>
+              ) : (
+                last && lastDist && last.distance > 0 && (
+                  <p class="micro dock-last">
+                    Last trip · {lastDist.value} {lastDist.unit} · {fmtDuration(elapsedMs(last, now))}
+                  </p>
+                )
               )}
+
               {dest && !canRoute && (
                 <p class="hint">Needs a GPS fix or a city set in Settings to calculate a route.</p>
-              )}
-              {last && last.distance > 0 && (
-                <p class="hint">
-                  Last trip: {distanceParts(last.distance, settings.units).value}{' '}
-                  {distanceParts(last.distance, settings.units).unit} ·{' '}
-                  {fmtDuration(elapsedMs(last, now))}
-                </p>
               )}
             </>
           )}
         </div>
-
-        <MusicCard settings={settings} />
-      </aside>
-    </div>
-  );
-}
-
-function MusicCard({ settings }: { settings: Settings }) {
-  return (
-    <div class="card">
-      <div class="micro">Music</div>
-      {settings.ytPlaylist.trim() ? (
-        <MusicEmbed id={settings.ytPlaylist.trim()} />
-      ) : (
-        <p class="hint">Add a YouTube playlist ID in Settings to play music here.</p>
-      )}
-    </div>
-  );
-}
-
-function MusicEmbed({ id }: { id: string }) {
-  const src = id.startsWith('PL')
-    ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(id)}&playsinline=1&rel=0`
-    : `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?playsinline=1&rel=0`;
-  return (
-    <div class="yt-wrap">
-      <iframe
-        src={src}
-        title="Music"
-        allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
-        allowFullScreen
-      />
+      </section>
     </div>
   );
 }
