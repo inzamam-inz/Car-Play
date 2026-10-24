@@ -31,7 +31,7 @@ The left rail is the only navigation — there is no bottom bar.
 | Rail | What it is |
 | --- | --- |
 | **Dashboard** | The 12×4 tile grid. Tap a tile to open its panel. Swipe for more pages. |
-| **Navigation** | Map with in-tab directions, a large speed meter, destination chips and an optional music player. |
+| **Navigation** | Map with a route preview, one-tap handoff to the phone's Maps app, a large speed meter, destination chips and an optional music player. |
 | **Settings** | Theme, units, city override, YouTube playlist, backup and restore. |
 | **Edit** *(bottom)* | Always-on dashboard editor: resize, reorder, remove, and add tiles. |
 
@@ -51,36 +51,45 @@ icon. Nothing is write-once.
 
 ### A note on Navigation
 
-Everything happens inside the Navigation view — **no browser tabs, ever**.
-
 Tapping a Location tile on the Dashboard takes you straight to this view with
 that place already selected. (Web-link tiles are the exception: those still open
 in a new tab.) A Location tile with no address yet takes you to Edit instead,
 since there is nothing to navigate to.
 
-The map has two modes:
+The map has two modes, both inside the app:
 
 - **Place view** — Google Maps' keyless `output=embed` viewport centred on the
   selected destination.
-- **Route view** — **Start navigation** swaps the frame to Google's classic
-  keyless directions endpoint (`f=d` + `saddr`/`daddr` + `output=embed`), which
-  renders the route and its step list in place. **End route** returns to the
-  place view.
+- **Route view** — **Preview route** swaps the frame to Google's classic keyless
+  directions endpoint (`f=d` + `saddr`/`daddr` + `output=embed`), which renders
+  the route and its step list in place.
 
 Route mode hides the destination chips on purpose: one route at a time, and the
-only way out is **End route**, so an old route can never quietly resume. The
-origin is frozen when you start, so a moving GPS fix does not reload the map.
+only way out is **End preview**, so an old route can never quietly resume. The
+origin is frozen when you preview, so a moving GPS fix does not reload the map.
 
-Two honest limits of embedding Google Maps:
+### Why "Preview route" and not "Navigate"
 
-1. **It is not live turn-by-turn.** There is no position tracking inside the
-   frame, no re-routing, no voice. It shows the route from the origin captured
-   at the moment you tapped Start.
-2. The `f=d` endpoint is Google's legacy keyless embed. It is not a
-   contract — if Google ever changes it, the route view degrades to a plain map.
+An embed can **draw** a route but can never **drive** it. Inside the frame there
+is no position tracking, no re-routing, no voice, and Google's embed carries no
+live traffic — because it is somebody else's page in a box, not a routing engine
+you can program. This is a hard limit of Google's embed, not a missing feature.
 
-If you later want real turn-by-turn while driving, that needs the Google Maps
-app, not an iframe.
+So the last step is an explicit handoff: **Open in Maps app**, which sends the
+destination to the phone's own navigator —
+
+| Platform | Link | Result |
+| --- | --- | --- |
+| Android | `geo:0,0?q=…` | Google Maps app (or a chooser, if several map apps are installed) |
+| iOS / iPadOS | `maps://?daddr=…` | Apple Maps (iPadOS reports a Mac UA, so touch points are checked too) |
+| Desktop | `https://www.google.com/maps/dir/…` | Maps in the browser — no app to hand off to |
+
+That link is a real `<a href>`, not `window.open`, so it swaps you to the app
+instead of spawning a tab. Real turn-by-turn, traffic, voice and lane guidance
+live in that app; this screen stays behind as the dashboard when you switch back.
+
+One caveat: if a device has no maps app that answers `geo:`, nothing happens —
+Android almost always has Google Maps, so this is rare in practice.
 
 Destination chips come from your Maps tiles. A chip with no address yet shows a
 pencil and takes you to Edit to set one, rather than searching for the literal
@@ -93,7 +102,7 @@ word "Home".
 - **Speed** — GPS ground speed in km/h or mph with a compass heading, from the device GPS
 - **Weather** — GPS via Open-Meteo (no API key), cached so it survives offline
 - **Notes** — quick capture, mark done, stored on device
-- **Navigation** — keyless Google Maps view, in-tab directions, speed meter, one-tap destinations from your Location tiles
+- **Navigation** — keyless Google Maps view, in-tab route preview, handoff to the Maps app for real turn-by-turn, speed meter, one-tap destinations from your Location tiles
 - **Music** — embedded YouTube playlist in the Navigation view, plus a YouTube Music shortcut tile
 - **Keep awake** — Screen Wake Lock with a silent-video fallback for iOS
 - **Backup** — copy / restore layout, notes and settings as JSON

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'preact/hooks';
 import type { Settings, Tile } from '../lib/store';
 import { embedUrl, directionsUrl } from '../lib/maps';
+import { navAppUrl } from '../lib/clock';
 import { compass, formatSpeed, useGeo } from '../lib/speed';
 import { Icon } from '../ui/icons';
 
@@ -112,7 +113,7 @@ export function NavigationView({
         </div>
 
         <div class="card">
-          <div class="micro">{navigating ? 'Routing' : 'Destinations'}</div>
+          <div class="micro">{navigating ? 'Route preview' : 'Destinations'}</div>
 
           {navigating ? (
             <>
@@ -120,7 +121,17 @@ export function NavigationView({
                 <Icon name="nav" size={15} />
                 <span class="route-to">{destTitle || dest}</span>
               </div>
-              <button class="btn wide" onClick={() => setNavFor(null)}>End route</button>
+              {/* The frame can draw a route but never drive it: no position
+                  tracking, no rerouting, no voice. So the last step hands the
+                  destination to the phone's own app. */}
+              <a class="btn primary wide" href={navAppUrl(dest)}>
+                <Icon name="nav" size={16} /> Open in Maps app
+              </a>
+              <button class="btn wide" onClick={() => setNavFor(null)}>End preview</button>
+              <p class="hint">
+                Live turn-by-turn, traffic and voice come from the Maps app. This preview
+                stays on screen until you end it.
+              </p>
             </>
           ) : (
             <>
@@ -158,7 +169,7 @@ export function NavigationView({
                   disabled={!canRoute}
                   onClick={() => setNavFor(dest)}
                 >
-                  <Icon name="nav" size={16} /> Start navigation
+                  <Icon name="nav" size={16} /> Preview route
                 </button>
               )}
               {dest && !canRoute && (

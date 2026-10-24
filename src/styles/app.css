@@ -248,6 +248,7 @@ textarea { min-height: 96px; resize: vertical; user-select: text; -webkit-user-s
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: transparent; color: var(--text); cursor: pointer;
   font-size: 13px; letter-spacing: 0.04em;
+  text-decoration: none; box-sizing: border-box;
   transition: border-color 160ms var(--ease);
 }
 .btn:hover { border-color: var(--line-2); }
