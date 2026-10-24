@@ -14,8 +14,10 @@ export function formatSpeed(
 
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
+// GPS heading is null when stopped, so there is no bearing to name. A dash
+// matches formatSpeed()'s "no value" mark and keeps the row narrow on a phone.
 export function compass(deg: number | null | undefined): string {
-  if (deg == null || !Number.isFinite(deg)) return 'Stationary';
+  if (deg == null || !Number.isFinite(deg)) return '—';
   const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
   return DIRS[i];
 }
