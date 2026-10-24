@@ -3,8 +3,9 @@ import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages serves at https://<user>.github.io/<repo>/ — assets must use that base.
+// The repo is inzamam-inz/Car-Play, so the deployed path is /Car-Play/.
 export default defineConfig({
-  base: '/Gari/',
+  base: '/Car-Play/',
   plugins: [
     preact(),
     VitePWA({
