@@ -74,6 +74,8 @@ export function App() {
   const [panel, setPanel] = useState<string | null>(null);
   /** Tile currently being reconfigured from the Edit view. */
   const [editTile, setEditTile] = useState<Tile | null>(null);
+  /** Destination shown in the Navigation view; '' means current location. */
+  const [navDest, setNavDest] = useState('');
   const [page, setPage] = useState(0);
   const [wx, setWx] = useState<Wx | null>(null);
   const [clock, setClock] = useState(nowParts());
@@ -133,6 +135,15 @@ export function App() {
     setPanel(p);
   };
 
+  /** Location tiles land in the Navigation view with the place pre-selected. */
+  const navigateTo = (dest: string) => {
+    setNavDest(dest);
+    setView('navigation');
+    setPanel(null);
+    setEditTile(null);
+    setPage(0);
+  };
+
   const toggleAwake = async () => {
     if (awake) { await keeper.current.release(); setAwake(false); }
     else { await keeper.current.enable(); setAwake(true); }
@@ -161,7 +172,7 @@ export function App() {
   };
   const deleteTile = (id: string) => setTiles(tiles.filter((x) => x.id !== id));
 
-  const ctx = { tiles, notes, settings, wx, openPanel };
+  const ctx = { tiles, notes, settings, wx, openPanel, navigateTo };
 
   // touch swipe between pages
   const touchX = useRef<number | null>(null);
@@ -272,7 +283,15 @@ export function App() {
           </div>
         )}
 
-        {view === 'navigation' && <NavigationView settings={settings} tiles={tiles} onEdit={() => go('edit')} />}
+        {view === 'navigation' && (
+          <NavigationView
+            settings={settings}
+            tiles={tiles}
+            dest={navDest}
+            setDest={setNavDest}
+            onEdit={() => go('edit')}
+          />
+        )}
 
         {view === 'settings' && (
           <div class="view-scroll">

@@ -1,4 +1,3 @@
-import { useState } from 'preact/hooks';
 import type { Settings, Tile } from '../lib/store';
 import { mapsUrl } from '../lib/clock';
 import { embedUrl } from '../lib/maps';
@@ -7,29 +6,33 @@ import { Icon } from '../ui/icons';
 
 // Google Maps cannot do turn-by-turn inside an iframe, so the map here is a
 // live viewport and the chips below deep-link into the real navigation app.
+// The destination lives in App state so a Location tile can land here directly.
 export function NavigationView({
   settings,
   tiles,
+  dest,
+  setDest,
   onEdit,
 }: {
   settings: Settings;
   tiles: Tile[];
+  /** Address or search phrase currently shown, '' for wherever we are. */
+  dest: string;
+  setDest: (d: string) => void;
   onEdit: () => void;
 }) {
   const geo = useGeo();
-  const [selected, setSelected] = useState<string>('');
-
   const places = tiles.filter((t) => t.kind === 'maps' && t.title);
-  const chosen = places.find((p) => p.title === selected);
+  const destTitle = places.find((p) => p.address && p.address === dest)?.title;
   const speed = formatSpeed(geo.mps, settings.units);
 
   const embed = embedUrl({
-    dest: chosen?.address || settings.city,
+    dest: dest || settings.city,
     lat: geo.lat,
     lon: geo.lon,
   });
 
-  const go = (dest: string) => window.open(mapsUrl(dest), '_blank', 'noopener');
+  const drive = (d: string) => window.open(mapsUrl(d), '_blank', 'noopener');
 
   return (
     <div class="nav-grid">
@@ -51,7 +54,8 @@ export function NavigationView({
           </div>
         )}
         <div class="nav-map-badge micro">
-          {chosen?.title ||
+          {destTitle ||
+            dest ||
             (geo.lat != null ? 'Current location' : settings.city || geo.error || 'No fix')}
         </div>
       </section>
@@ -70,18 +74,18 @@ export function NavigationView({
           <div class="micro">Destinations</div>
           <div class="chips">
             {geo.lat != null && geo.lon != null && (
-              <button class="chip-btn" onClick={() => go(`${geo.lat},${geo.lon}`)}>
+              <button class="chip-btn" onClick={() => drive(`${geo.lat},${geo.lon}`)}>
                 <Icon name="nav" size={15} /> My location
               </button>
             )}
             {places.map((p) => (
               <button
                 key={p.id}
-                class={`chip-btn${selected === p.title ? ' on' : ''}`}
+                class={`chip-btn${p.address && dest === p.address ? ' on' : ''}`}
                 onClick={() => {
                   // An unset destination would search for the literal title.
                   if (!p.address) return onEdit();
-                  setSelected(selected === p.title ? '' : p.title);
+                  setDest(dest === p.address ? '' : p.address);
                 }}
                 title={p.address || 'No address yet — tap to set one in Edit'}
               >
@@ -89,10 +93,10 @@ export function NavigationView({
                 {!p.address && <Icon name="pencil" size={12} />}
               </button>
             ))}
-            {!places.length && <p class="hint">Add a Maps tile in Edit to see destinations here.</p>}
+            {!places.length && <p class="hint">Add a Location tile in Edit to see destinations here.</p>}
           </div>
-          {chosen?.address && (
-            <button class="btn primary wide" onClick={() => go(chosen.address!)}>
+          {dest && (
+            <button class="btn primary wide" onClick={() => drive(dest)}>
               <Icon name="nav" size={16} /> Start navigation
             </button>
           )}

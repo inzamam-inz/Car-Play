@@ -56,6 +56,11 @@ turn-by-turn navigation** — Google deliberately keeps routing inside its own
 app. So pick a destination chip and hit **Start navigation**, which deep-links
 into the real Google Maps (Android) or Apple Maps (iOS).
 
+Tapping a Location tile on the Dashboard takes you straight to this view with
+that place already selected — it never opens a browser tab. (Web-link tiles do
+still open in a new tab.) A Location tile with no address yet takes you to Edit
+instead, since there is nothing to navigate to.
+
 Destination chips come from your Maps tiles. A chip with no address yet shows a
 pencil and takes you to Edit to set one, rather than searching for the literal
 word "Home".

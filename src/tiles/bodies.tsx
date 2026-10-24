@@ -2,7 +2,7 @@ import type { Tile, Note, Settings } from '../lib/store';
 import type { Wx } from '../lib/weather';
 import { codeLabel, fmtTemp, codeKind } from '../lib/weather';
 import { compass, formatSpeed, useGeo } from '../lib/speed';
-import { mapsUrl, nowParts } from '../lib/clock';
+import { nowParts } from '../lib/clock';
 import { Icon } from '../ui/icons';
 import { useEffect, useState } from 'preact/hooks';
 
@@ -12,6 +12,8 @@ export interface TileCtx {
   settings: Settings;
   wx: Wx | null;
   openPanel: (p: string) => void;
+  /** Show a destination inside the Navigation view (no new tab). */
+  navigateTo: (dest: string) => void;
 }
 
 export function ClockBody() {
@@ -134,8 +136,9 @@ export function activateTile(tile: Tile, ctx: TileCtx) {
   if (tile.kind === 'weather') return ctx.openPanel('weather');
   if (tile.kind === 'youtube') return ctx.openPanel('youtube');
   if (tile.kind === 'maps') {
+    // Navigation happens in the Navigation view, not a new browser tab.
     if (!tile.address) return ctx.openPanel('shortcuts');
-    window.open(mapsUrl(tile.address), '_blank', 'noopener');
+    ctx.navigateTo(tile.address);
     return;
   }
   if (tile.url) window.open(tile.url, '_blank', 'noopener');
