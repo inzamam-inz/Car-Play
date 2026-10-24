@@ -23,6 +23,11 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      # Turns Pages on for the repo if it is not already, which is the difference
+      # between a deploy that works first time and one that fails at the last step.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
